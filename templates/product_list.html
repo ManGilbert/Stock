@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Products{% endblock %}
+
+{% block content %}
+
+<div class="card">
+    <div class="card-header">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item active" aria-current="page"> Product</li>
+            <li class="breadcrumb-item"><a href="{% url 'stock_view' %}">Stock Status</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'stock_movement_view' %}">Stock Transaction</a></li>
+        </ol>
+    </div>
+    <div class="card-body">
+
+        <!-- Add Product Button -->
+        {% if role == "admin" or role == "manager" %}
+        <button type="button" class="btn btn-outline-primary mb-3" data-bs-toggle="modal"
+            data-bs-target="#addProductModal">
+            Add Product
+        </button>
+        {% endif %}
+
+        <!-- Products Table -->
+        <table class="table table-striped" id="table1">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Branch</th>
+                    <th>Cost Price</th>
+                    <th>Selling Price</th>
+                    {% if role == "admin" or role == "manager" %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr>
+                    <td>{{ product.name }}</td>
+                    <td>{{ product.branch.branch_name }}</td>
+                    <td>{{ product.cost_price }}</td>
+                    <td>{{ product.selling_price }}</td>
+                    <td>
+                        {% if role == "admin" or role == "manager" %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
+                            <ul class="dropdown-menu dropdown-menu-right">
+                                <!-- Edit -->
+                                <li>
+                                    <a class="dropdown-item edit-product-btn" href="#" data-id="{{ product.id }}"
+                                        data-name="{{ product.name }}" data-branch="{{ product.branch.id }}"
+                                        data-category="{{ product.category }}" data-cost="{{ product.cost_price }}"
+                                        data-selling="{{ product.selling_price }}" data-bs-toggle="modal"
+                                        data-bs-target="#editProductModal">
+                                        Edit
+                                    </a>
+                                </li>
+                                <!-- Delete -->
+                                <li>
+                                    <a class="dropdown-item delete-product-btn" href="#" data-id="{{ product.id }}"
+                                        data-name="{{ product.name }}" data-bs-toggle="modal"
+                                        data-bs-target="#deleteProductModal">
+                                        Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted">No products found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div class="modal fade" id="addProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'products' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label>Name:</label>
+                    <input type="text" name="name" class="form-control" required>
+
+                    <label>Branch:</label>
+                    <select name="branch" class="form-control" required>
+                        <option value="">Select Branch</option>
+                        {% if user and user.account %}
+                            {% for branch in user.account.branches.all %}
+                                <option value="{{ branch.id }}">
+                                    {{ branch.branch_name }}{% if branch.manager %} || {{ branch.manager.firstname }} {{ branch.manager.lastname }} ({{ branch.manager.role|capfirst }}){% endif %}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="">No branches available</option>
+                        {% endif %}
+                    </select>
+
+                    <label>Category:</label>
+                    <input type="text" name="category" value="Empty" class="form-control" readonly>
+
+                    <label>Cost Price:</label>
+                    <input type="number" step="0.01" name="cost_price" class="form-control" required>
+
+                    <label>Selling Price:</label>
+                    <input type="number" step="0.01" name="selling_price" class="form-control" required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'products' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="product_id" id="editProductId">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label>Name:</label>
+                    <input type="text" name="name" class="form-control" id="editProductName" required>
+
+                    <label>Branch:</label>
+                    <select name="branch" class="form-control" id="editProductBranch" required>
+                        <option value="">Select Branch</option>
+                        {% if user and user.account %}
+                            {% for branch in user.account.branches.all %}
+                                <option value="{{ branch.id }}"
+                                    {% if product.branch.id == branch.id %}selected{% endif %}>
+                                    {{ branch.branch_name }}
+                                    {% if branch.manager %}
+                                        || {{ branch.manager.firstname }} {{ branch.manager.lastname }} ({{ branch.manager.role|capfirst }})
+                                    {% else %}
+                                        || Unassigned
+                                    {% endif %}
+                                </option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="">No branches available</option>
+                        {% endif %}
+                    </select>
+
+                    <label>Category:</label>
+                    <input type="text" name="category" class="form-control" id="editProductCategory" required>
+
+                    <label>Cost Price:</label>
+                    <input type="number" step="0.01" name="cost_price" class="form-control" id="editProductCost"
+                        required>
+
+                    <label>Selling Price:</label>
+                    <input type="number" step="0.01" name="selling_price" class="form-control" id="editProductSelling"
+                        required>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Product</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Product Modal -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'products' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="product_id" id="deleteProductId">
+                <div class="modal-body">
+                    Are you sure you want to delete "<span id="deleteProductName"></span>"?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JS for Edit/Delete Modals -->
+<script src="{% static 'assets/vendors/simple-datatables/simple-datatables.js' %}"></script>
+<script>
+    const table1 = document.querySelector('#table1');
+    const dataTable = new simpleDatatables.DataTable(table1);
+
+    document.querySelectorAll('.edit-product-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.getElementById('editProductId').value = this.dataset.id;
+            document.getElementById('editProductName').value = this.dataset.name;
+            document.getElementById('editProductCategory').value = this.dataset.category;
+            document.getElementById('editProductCost').value = this.dataset.cost;
+            document.getElementById('editProductSelling').value = this.dataset.selling;
+            document.getElementById('editProductBranch').value = this.dataset.branch;
+        });
+    });
+
+    // Delete modal
+    document.querySelectorAll('.delete-product-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.getElementById('deleteProductId').value = this.dataset.id;
+            document.getElementById('deleteProductName').textContent = this.dataset.name;
+        });
+    });
+</script>
+
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Stock Status{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        {% if stock_summary %}
+        <div class="card-header">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item active" aria-current="page">Stock Status </li>
+                <li class="breadcrumb-item"><a href="{% url 'stock_movement_view' %}">Stock Transaction</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'products_view' %}">Product</a></li>
+            </ol>
+        </div>
+        <h5 class="mb-3">
+            TOTAL INVENTORY VALUE:
+            <strong>{{ total_inventory_value }}</strong>
+        </h5>
+
+        <table  class="table table-striped" id="table1">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Stock</th>
+                    <th>Cost Price</th>
+                    <th>Total Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in stock_summary %}
+                <tr>
+                    <td>{{ item.product__name }}</td>
+                    <td>{{ item.stock }}</td>
+                    <td>{{ item.product__cost_price }}</td>
+                    <td>{{ item.total_cost }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <script>
+            $(document).ready(function () {
+                $('#stockTable').DataTable({
+                    paging: true,
+                    searching: true,
+                    ordering: true,
+                    pageLength: 10
+                });
+            });
+        </script>
+
+        {% else %}
+        <p class="text-muted">No stock data available.</p>
+        {% endif %}
+    </div>
+</div>
+<script src="{% static 'assets/vendors/simple-datatables/simple-datatables.js' %}"></script>
+<script>
+    const table1 = document.querySelector('#table1');
+    const dataTable = new simpleDatatables.DataTable(table1);
+</script>
+{% endblock %}

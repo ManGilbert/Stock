@@ -1,0 +1,283 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Stock Movements{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item active" aria-current="page">Stock Transaction </li>
+            <li class="breadcrumb-item"><a href="{% url 'stock_view' %}">Stock Status</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'products_view' %}">Product</a></li>
+        </ol>
+    </div>
+    
+    <div class="card-body">
+
+        <!-- Add Movement Button -->
+        {% if role == "admin" or role == "manager" %}
+        <button type="button" class="btn btn-outline-primary mb-3" data-bs-toggle="modal"
+            data-bs-target="#addMovementModal">
+            Add Stock Movement
+        </button>
+        {% endif %}
+
+        <!-- Movements Table -->
+        <table class="table table-striped" id="tableMovements">
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Branch</th>
+                    <th>Type</th>
+                    <th>Quantity</th>
+                    <th>Selling Amount</th>
+                    <th>Profit</th>
+                    <th>Payment</th>
+                    <th>Notes</th>
+                    <th>Created By</th>
+                    <th>Created At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for movement in movements %}
+                <tr>
+                    <td>{{ movement.product.name }}</td>
+                    <td>{{ movement.branch.branch_name }} {% if movement.branch.manager %}|| {{ movement.branch.manager.firstname }} {{ movement.branch.manager.lastname }} (Manager){% endif %}</td>
+                    <td>{{ movement.movement_type }}</td>
+                    <td>{{ movement.quantity }}</td>
+                    <td>{{ movement.selling_amount|default:"-" }}</td>
+                    <td>{{ movement.profit }}</td>
+                    <td>{{ movement.payment_method|default:"-" }}</td>
+                    <td>{{ movement.notes|default:"-" }}</td>
+                    <td>{{ movement.created_by.firstname }} {{ movement.created_by.lastname }}</td>
+                    <td>{{ movement.created_at }}</td>
+                    <td>
+                        {% if role == "admin" or role == "manager" %}
+                        <div class="dropdown">
+                            <button class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown">Actions</button>
+                            <ul class="dropdown-menu dropdown-menu-right">
+                                <!-- Edit -->
+                                <li>
+                                    <a class="dropdown-item edit-movement-btn" href="#" 
+                                        data-id="{{ movement.id }}"
+                                        data-product="{{ movement.product.id }}"
+                                        data-branch="{{ movement.branch.id }}"
+                                        data-type="{{ movement.movement_type }}"
+                                        data-quantity="{{ movement.quantity }}"
+                                        data-selling="{{ movement.selling_amount }}"
+                                        data-notes="{{ movement.notes }}"
+                                        data-payment="{{ movement.payment_method }}"
+                                        data-bs-toggle="modal" data-bs-target="#addMovementModal">
+                                        Edit
+                                    </a>
+                                </li>
+                                <!-- Delete -->
+                                <li>
+                                    <a class="dropdown-item delete-movement-btn" href="#" 
+                                        data-id="{{ movement.id }}"
+                                        data-name="{{ movement.product.name }}"
+                                        data-bs-toggle="modal" data-bs-target="#deleteMovementModal">
+                                        Delete
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="text-center text-muted">No stock movements found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Stock Movement Modal -->
+<div class="modal fade" id="addMovementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'stock_movement_view' %}">
+                {% csrf_token %}
+                <input type="hidden" name="movement_id" id="movementIdInput">
+                <input type="hidden" name="action" id="movementActionInput" value="add">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add/Edit Stock Movement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <label>Branch:</label>
+                    <select id="branchSelect" name="branch" class="form-control" required>
+                        <option value="">Select Branch</option>
+                        {% for b in branches %}
+                        <option value="{{ b.id }}">
+                            {{ b.branch_name }} || {% if b.manager %}{{ b.manager.firstname }} {{ b.manager.lastname }} (Manager){% else %}No Manager{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Product:</label>
+                    <select id="productSelect" name="product" class="form-control" required>
+                        <option value="">Select Product</option>
+                        {% for p in products %}
+                        <option value="{{ p.id }}" data-branch="{{ p.branch.id }}">{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label>Movement Type:</label>
+                    <select id="movementType" name="movement_type" class="form-control" required>
+                        <option value="IN">IN</option>
+                        <option value="OUT">OUT</option>
+                    </select>
+
+                    <label>Quantity:</label>
+                    <input type="number" name="quantity" class="form-control" required min="1">
+
+                    <div id="sellingAmountDiv">
+                        <label>Selling Amount (required for OUT):</label>
+                        <input type="number" step="0.01" name="selling_amount" class="form-control">
+                    
+                    <label>Payment Method:</label>
+                    <select name="payment_method" class="form-control">
+                        <option value="">Select Payment</option>
+                        <option value="cash">Cash</option>
+                        <option value="momo">Mobile Money</option>
+                    </select>
+                    </div>
+
+                    <label>Notes:</label>
+                    <textarea name="notes" class="form-control">Paid</textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Movement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteMovementModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{% url 'stock_movement_view' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="movement_id" id="deleteMovementId">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete movement of <strong id="deleteMovementName"></strong>?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- JS for dynamic behavior -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const branchSelect = document.getElementById('branchSelect');
+    const productSelect = document.getElementById('productSelect');
+    const movementType = document.getElementById('movementType');
+    const sellingAmountDiv = document.getElementById('sellingAmountDiv');
+    const sellingInput = sellingAmountDiv.querySelector('input');
+
+    // Filter products by branch
+    branchSelect.addEventListener('change', function() {
+        const branchId = this.value;
+        productSelect.querySelectorAll('option').forEach(option => {
+            if (!option.value) return;
+            option.style.display = (option.dataset.branch === branchId) ? 'block' : 'none';
+        });
+        productSelect.value = '';
+    });
+
+    // Show/hide selling amount based on movement type
+    movementType.addEventListener('change', function() {
+        if (this.value === 'OUT') {
+            sellingAmountDiv.style.display = 'block';
+        } else {
+            sellingAmountDiv.style.display = 'none';
+            sellingInput.value = '';
+        }
+    });
+    movementType.dispatchEvent(new Event('change'));
+
+    // --- Edit Movement ---
+    const editBtns = document.querySelectorAll('.edit-movement-btn');
+    const movementIdInput = document.getElementById('movementIdInput');
+    const actionInput = document.getElementById('movementActionInput');
+    const quantityInput = document.querySelector('input[name="quantity"]');
+    const notesTextarea = document.querySelector('textarea[name="notes"]');
+    const paymentSelect = document.querySelector('select[name="payment_method"]');
+
+    editBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            movementIdInput.value = this.dataset.id;
+            actionInput.value = 'update';
+            branchSelect.value = this.dataset.branch;
+
+            // Filter products for branch
+            productSelect.querySelectorAll('option').forEach(option => {
+                if (!option.value) return;
+                option.style.display = (option.dataset.branch === this.dataset.branch) ? 'block' : 'none';
+            });
+            productSelect.value = this.dataset.product;
+
+            movementType.value = this.dataset.type;
+            quantityInput.value = this.dataset.quantity;
+            sellingInput.value = this.dataset.selling;
+            notesTextarea.value = this.dataset.notes;
+            paymentSelect.value = this.dataset.payment;
+
+            sellingAmountDiv.style.display = (this.dataset.type === 'OUT') ? 'block' : 'none';
+        });
+    });
+
+    // --- Delete Movement ---
+    const deleteBtns = document.querySelectorAll('.delete-movement-btn');
+    const deleteMovementId = document.getElementById('deleteMovementId');
+    const deleteMovementName = document.getElementById('deleteMovementName');
+
+    deleteBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            deleteMovementId.value = this.dataset.id;
+            deleteMovementName.textContent = this.dataset.name;
+        });
+    });
+
+    // Reset modal on close
+    const addModal = document.getElementById('addMovementModal');
+    addModal.addEventListener('hidden.bs.modal', function() {
+        movementIdInput.value = '';
+        actionInput.value = 'add';
+        branchSelect.value = '';
+        productSelect.value = '';
+        movementType.value = 'IN';
+        quantityInput.value = '';
+        sellingInput.value = '';
+        notesTextarea.value = '';
+        paymentSelect.value = '';
+        sellingAmountDiv.style.display = 'none';
+    });
+});
+</script>
+
+<!-- Optional: Datatable -->
+<script src="{% static 'assets/vendors/simple-datatables/simple-datatables.js' %}"></script>
+<script>
+const tableMovements = document.querySelector('#tableMovements');
+const dataTable = new simpleDatatables.DataTable(tableMovements);
+</script>
+{% endblock %}
