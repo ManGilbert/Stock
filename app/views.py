@@ -404,3 +404,6 @@ def stock_view(request):
         'role': role,
     })
 
+
+def report_view(request):
+    return render(request, 'report.html')
