@@ -14,12 +14,12 @@ urlpatterns = [
 
     # --- Stock Movement URLs ---
     path('stock/movements/', views.stock_movement_view, name='stock_movement_view'),
+    path('stock/movements/all/records/', views.stock_movement_all_records_view, name='stock_movement_all_records_view'),
 
     # --- Stock URLs ---
     path('stock/stocks', views.stock_view, name='stock_view'),
 
         # --- Stock URLs ---
     path('stock/report', views.report_view, name='report_view'),
-
-
+    
 ] 

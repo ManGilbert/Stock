@@ -130,10 +130,7 @@ class Stock(models.Model):
             raise ValidationError("Cannot delete Stock with quantity greater than 0.")
         super().delete(*args, **kwargs)
 
-
-from django.db import models, transaction
-from django.core.exceptions import ValidationError
-
+# -------------------- 6. Stock Movements --------------------
 class StockMovement(models.Model):
     MOVEMENT_CHOICES = (
         ('IN', 'IN'),

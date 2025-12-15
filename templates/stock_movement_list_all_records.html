@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Stock Movements{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item active" aria-current="page">Stock transaction all records</li>
+            <li class="breadcrumb-item"><a href="{% url 'stock_movement_view' %}">Stock daily</a></li>
+        </ol>
+    </div>
+
+    <div class="card-body">
+
+        <!-- SEARCH + INFO -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <input type="text" id="movementSearch" class="form-control form-control-sm w-25"
+                placeholder="Search movements...">
+            <small class="text-muted" id="paginationInfo"></small>
+        </div>
+        <!-- MOVEMENTS LIST : SMALL + COMPACT + SCROLLABLE ON MOBILE -->
+        <div class="table-responsive">
+
+            <!-- MOVEMENTS LIST : SMALL + COMPACT -->
+            <div class="list-group small" id="movementsList" style="min-width: 720px;">
+
+                <!-- HEADER -->
+                <div class="list-group-item py-1 fw-bold bg-light">
+                    <div class="d-flex">
+                        <span class="me-2" style="width:14%">Product</span>
+                        <span class="me-2" style="width:12%">Branch</span>
+                        <span class="me-2" style="width:6%">Type</span>
+                        <span class="me-2 text-center" style="width:6%">Qty</span>
+                        <span class="me-2" style="width:10%">Amount</span>
+                        <span class="me-2" style="width:8%">Profit</span>
+                        <span class="me-2" style="width:10%">Pay</span>
+                        <span class="me-2" style="width:10%">Notes</span>
+                        <span class="me-2" style="width:10%">By</span>
+                        <span class="me-2" style="width:8%">Time</span>
+                    </div>
+                </div>
+
+                {% for movement in movements %}
+                <div class="list-group-item py-1 movement-row">
+                    <div class="d-flex font-monospace align-items-center">
+
+                        <span class="me-2 text-truncate" style="width:14%">
+                            {{ movement.product.name }}
+                        </span>
+
+                        <span class="me-2 text-truncate" style="width:12%">
+                            {{ movement.branch.branch_name }}
+                        </span>
+
+                        <span class="me-2 text-uppercase" style="width:6%">
+                            {{ movement.movement_type }}
+                        </span>
+
+                        <span class="me-2 text-center" style="width:6%">
+                            {{ movement.quantity }}
+                        </span>
+
+                        <span class="me-2" style="width:10%">
+                            {{ movement.selling_amount|default:"-" }}
+                        </span>
+
+                        <span class="me-2 text-success" style="width:8%">
+                            {{ movement.profit }}
+                        </span>
+
+                        <span class="me-2" style="width:10%">
+                            {{ movement.payment_method|default:"-" }}
+                        </span>
+
+                        <span class="me-2 text-truncate" style="width:10%">
+                            {{ movement.notes|default:"-" }}
+                        </span>
+
+                        <span class="me-2 text-truncate" style="width:10%">
+                            {{ movement.created_by.firstname }}
+                        </span>
+
+                        <span class="me-2 text-muted" style="width:8%">
+                            {{ movement.created_at|date:"H:i" }}
+                        </span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="list-group-item py-1 text-muted text-center small">
+                    No stock movements found.
+                </div>
+                {% endfor %}
+
+            </div>
+        </div>
+
+        <!-- PAGINATION CONTROLS -->
+        <div class="d-flex justify-content-center mt-2">
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="paginationControls"></ul>
+            </nav>
+        </div>
+    </div>
+</div>
+<!-- JAVASCRIPT : SEARCH + PAGINATION -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const rows = Array.from(document.querySelectorAll(".movement-row"));
+        const searchInput = document.getElementById("movementSearch");
+        const pagination = document.getElementById("paginationControls");
+        const paginationInfo = document.getElementById("paginationInfo");
+
+        const rowsPerPage = 50;
+        let currentPage = 1;
+        let filteredRows = rows;
+
+        function render() {
+            const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+            currentPage = Math.min(currentPage, totalPages || 1);
+
+            rows.forEach(row => row.style.display = "none");
+
+            const start = (currentPage - 1) * rowsPerPage;
+            const end = start + rowsPerPage;
+
+            filteredRows.slice(start, end).forEach(row => {
+                row.style.display = "";
+            });
+
+            paginationInfo.textContent =
+                `Showing ${filteredRows.length ? start + 1 : 0}–${Math.min(end, filteredRows.length)} of ${filteredRows.length}`;
+
+            renderPagination(totalPages);
+        }
+
+        function renderPagination(totalPages) {
+            pagination.innerHTML = "";
+            if (totalPages <= 1) return;
+
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement("li");
+                li.className = "page-item " + (i === currentPage ? "active" : "");
+
+                const a = document.createElement("a");
+                a.className = "page-link";
+                a.href = "#";
+                a.textContent = i;
+
+                a.addEventListener("click", e => {
+                    e.preventDefault();
+                    currentPage = i;
+                    render();
+                });
+
+                li.appendChild(a);
+                pagination.appendChild(li);
+            }
+        }
+
+        searchInput.addEventListener("input", function () {
+            const term = this.value.toLowerCase();
+
+            filteredRows = rows.filter(row =>
+                row.textContent.toLowerCase().includes(term)
+            );
+
+            currentPage = 1;
+            render();
+        });
+
+        render();
+    });
+</script>
+{% endblock %}

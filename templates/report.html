@@ -1,6 +1,173 @@
 {% extends 'base.html' %}
-{% block title %}Edit Product{% endblock %}
+{% block title %}Daily Branch Report{% endblock %}
 
 {% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="page-heading">
+            <h6>Daily Branch Report</h6>
+        </div>
 
-{% endblock %}
+        <div class="page-content">
+            <!-- DATE SELECT -->
+            <div class="d-flex">
+                <div class="card-body">
+                    <form method="get">
+                        <label class="form-label fw-bold">Select Date</label>
+                        <input type="date" name="date" value="{{ report_date }}" class="form-control"
+                            onchange="this.form.submit()">
+                    </form>
+                </div>
+            </div>
+
+            <!-- BRANCH REPORTS -->
+            <div class="accordion" id="branchAccordion">
+
+                {% for item in branch_reports %}
+                <div class="card mb-3">
+
+                    <!-- BRANCH HEADER -->
+                    <div class="d-flex">
+                        <button class="btn btn-link text-decoration-none fw-bold" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}">
+                            {{ item.branch.branch_name }}
+                            {% if item.branch.manager %}
+                            — {{ item.branch.manager.firstname }} {{ item.branch.manager.lastname }}
+                            <span class="text-muted">(Manager)</span>
+                            {% endif %}
+                        </button>
+                    </div>
+
+                    <!-- COLLAPSE BODY -->
+                    <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse"
+                        data-bs-parent="#branchAccordion">
+
+                        <div class="card-body">
+
+                            <!-- SUMMARY -->
+                            <div class="row">
+                       <div class="row">
+                            <div class="col-6 col-lg-3 col-md-6">
+                                <div class="card">
+                                    <div class="card-body px-3 py-4-5">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="stats-icon purple">
+                                                    <i class="iconly-boldWallet"></i>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <h6 class="text-muted font-semibold">Total Sales</h6>
+                                                <h6 class="font-extrabold mb-0">{{ item.summary.total_sales|default:0 }} RWF</h6>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-lg-3 col-md-6">
+                                <div class="card">
+                                    <div class="card-body px-3 py-4-5">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="stats-icon blue">
+                                                    <i class="iconly-boldChart"></i>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <h6 class="text-muted font-semibold">Total Profit</h6>
+                                                <h6 class="font-extrabold mb-0">{{ item.summary.total_profit|default:0 }} RWF</h6>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-lg-3 col-md-6">
+                                <div class="card">
+                                    <div class="card-body px-3 py-4-5">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="stats-icon green">
+                                                    <i class="iconly-boldBag"></i>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <h6 class="text-muted font-semibold">Items Sold</h6>
+                                                <h6 class="font-extrabold mb-0">{{ item.summary.total_qty|default:0 }}</h6>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6 col-lg-3 col-md-6">
+                                <div class="card">
+                                    <div class="card-body px-3 py-4-5">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="stats-icon red">
+                                                    <i class="iconly-boldBookmark"></i>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <h6 class="text-muted font-semibold">Save report</h6>
+                                                <h6 class="font-extrabold mb-0">Null</h6>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- SALES LIST : SMALL + COMPACT -->
+                    <div class="table-responsive">
+                    <!-- MOVEMENTS LIST : SMALL + COMPACT -->
+                        <div class="list-group small" id="movementsList" style="min-width: 720px;">
+                            <!-- HEADER -->
+                                    <div class="list-group-item py-1 fw-bold bg-light">
+                                        <div class="d-flex">
+                                            <span class="me-2" style="width:25%">Product</span>
+                                            <span class="me-2" style="width:6%">Qty</span>
+                                            <span class="me-2" style="width:12%">Amount</span>
+                                            <span class="me-2" style="width:12%">Profit</span>
+                                            <span class="me-2" style="width:15%">Pay</span>
+                                            <span style="width:8%">Time</span>
+                                        </div>
+                                    </div>
+
+                                    {% for s in item.sales %}
+                                    <div class="list-group-item py-1">
+                                        <div class="d-flex font-monospace">
+                                            <span class="me-2" style="width:25%">
+                                                {{ s.product.name }}
+                                            </span>
+                                            <span class="me-2 text-center" style="width:6%">
+                                                {{ s.quantity }}
+                                            </span>
+                                            <span class="me-2" style="width:12%">
+                                                {{ s.selling_amount }}
+                                            </span>
+                                            <span class="me-2 text-success" style="width:12%">
+                                                {{ s.profit }}
+                                            </span>
+                                            <span class="me-2" style="width:15%">
+                                                {{ s.payment_method }}
+                                            </span>
+                                            <span style="width:8%" class="text-muted">
+                                                {{ s.created_at|date:"H:i" }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="list-group-item py-1 text-muted text-center small">
+                                        No sales
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endblock %}

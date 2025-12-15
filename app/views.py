@@ -3,6 +3,21 @@ from django.contrib import messages
 from .models import AdminInfo, UserInfo, Account, Branch, Product
 from django.contrib.auth.hashers import make_password, check_password
 
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from .models import StockMovement, Product, Branch, UserInfo
+
+from django.shortcuts import render, redirect
+from django.db.models import Sum, F, Case, When, Value, IntegerField, ExpressionWrapper,DecimalField
+from .models import StockMovement, UserInfo, Branch
+
+from django.shortcuts import render, redirect
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum
+from .models import StockMovement, UserInfo, Branch
+
 # ---------- Send logged user to index ----------
 def index(request):
     """Send logged user to dashboard"""
@@ -239,11 +254,7 @@ def products_view(request):
         'user': user  # make sure we pass user for the branch dropdown
     })
 
-      
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from .models import StockMovement, Product, Branch, UserInfo
-
+# --- stock movement view ---
 def stock_movement_view(request):
     # --- Check login ---
     if not request.session.get('user_id') and not request.session.get('admin_id'):
@@ -326,13 +337,30 @@ def stock_movement_view(request):
         return redirect("stock_movement_view")
 
     # --- GET request: list movements ---
-    if role == "admin":
-        movements = StockMovement.objects.select_related('product', 'branch', 'created_by').order_by("-id")
-    else:
-        movements = StockMovement.objects.filter(branch__account=user.account)\
-                                         .select_related('product', 'branch', 'created_by')\
-                                         .order_by("-id")
+    # ======================================================
+    # GET REQUEST (SHOW LAST 24 HOURS RECORDS)
+    # ======================================================
+    last_24_hours = timezone.now() - timedelta(hours=24)
 
+    if role == "admin":
+        movements = (
+            StockMovement.objects
+            .filter(created_at__gte=last_24_hours)
+            .select_related("product", "branch", "created_by")
+            .order_by("-id")
+        )
+    else:
+        movements = (
+            StockMovement.objects
+            .filter(
+                branch__account=user.account,
+                created_at__gte=last_24_hours
+            )
+            .select_related("product", "branch", "created_by")
+            .order_by("-id")
+        )
+        
+    # --- Dropdown data ---
     products = Product.objects.filter(account=user.account) if user else Product.objects.all()
     branches = Branch.objects.filter(account=user.account) if user else Branch.objects.all()
 
@@ -344,9 +372,37 @@ def stock_movement_view(request):
         "user": user
     })
 
-from django.shortcuts import render, redirect
-from django.db.models import Sum, F, Case, When, Value, IntegerField, ExpressionWrapper,DecimalField
-from .models import StockMovement, UserInfo, Branch
+# --- stock movement all records view ---
+def stock_movement_all_records_view(request):
+    # --- Check login ---
+    if not request.session.get('user_id') and not request.session.get('admin_id'):
+        return redirect('login_view')
+
+    role = request.session.get('role')
+    user = None
+    if role != "admin":
+        user = UserInfo.objects.get(id=request.session["user_id"])
+
+    # --- GET request: list movements ---
+    if role == "admin":
+        movements = StockMovement.objects.select_related('product', 'branch', 'created_by').order_by("-id")
+    else:
+        movements = StockMovement.objects.filter(branch__account=user.account)\
+                                         .select_related('product', 'branch', 'created_by')\
+                                         .order_by("-id")
+
+    products = Product.objects.filter(account=user.account) if user else Product.objects.all()
+    branches = Branch.objects.filter(account=user.account) if user else Branch.objects.all()
+
+    return render(request, "stock_movement_list_all_records.html", {
+        "movements": movements,
+        "products": products,
+        "branches": branches,
+        "role": role,
+        "user": user
+    })
+
+# --- list current stocks ---
 def stock_view(request):
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
@@ -404,6 +460,53 @@ def stock_view(request):
         'role': role,
     })
 
-
+# ---------- daily report ----------
 def report_view(request):
-    return render(request, 'report.html')
+    # ---------- LOGIN CHECK ----------
+    if not request.session.get('user_id') and not request.session.get('admin_id'):
+        return redirect('login_view')
+
+    role = request.session.get('role')
+    account_id = request.session.get('account_id')
+
+    # ---------- DATE ----------
+    selected_date = request.GET.get('date')
+    if selected_date:
+        report_date = selected_date
+    else:
+        report_date = timezone.now().date()
+
+    # ---------- BRANCHES ----------
+    if role == "admin":
+        branches = Branch.objects.select_related('manager', 'account')
+    else:
+        branches = Branch.objects.filter(account_id=account_id)\
+                                 .select_related('manager')
+
+    branch_reports = []
+
+    for branch in branches:
+        movements = StockMovement.objects.filter(
+            branch=branch,
+            created_at__date=report_date
+        )
+
+        sales = movements.filter(movement_type='OUT')
+
+        summary = sales.aggregate(
+            total_sales=Sum('selling_amount'),
+            total_profit=Sum('profit'),
+            total_qty=Sum('quantity')
+        )
+
+        branch_reports.append({
+            'branch': branch,
+            'sales': sales,
+            'summary': summary
+        })
+
+    return render(request, 'report.html', {
+        'report_date': report_date,
+        'branch_reports': branch_reports,
+        'role': role,
+    })
