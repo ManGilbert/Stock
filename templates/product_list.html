@@ -18,7 +18,7 @@
         {% if role == "admin" or role == "manager" %}
         <button type="button" class="btn btn-outline-primary mb-3" data-bs-toggle="modal"
             data-bs-target="#addProductModal">
-            Add Product
+            + Product
         </button>
         {% endif %}
 
@@ -92,9 +92,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <label>Name:</label>
-                    <input type="text" name="name" class="form-control" required>
-
                     <label>Branch:</label>
                     <select name="branch" class="form-control" required>
                         <option value="">Select Branch</option>
@@ -108,6 +105,9 @@
                             <option value="">No branches available</option>
                         {% endif %}
                     </select>
+
+                    <label>Name:</label>
+                    <input type="text" name="name" class="form-control" required>
 
                     <label>Category:</label>
                     <input type="text" name="category" value="Empty" class="form-control" readonly>
@@ -140,10 +140,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <label>Name:</label>
-                    <input type="text" name="name" class="form-control" id="editProductName" required>
-
-                    <label>Branch:</label>
+                                        <label>Branch:</label>
                     <select name="branch" class="form-control" id="editProductBranch" required>
                         <option value="">Select Branch</option>
                         {% if user and user.account %}
@@ -162,6 +159,9 @@
                             <option value="">No branches available</option>
                         {% endif %}
                     </select>
+                    
+                    <label>Name:</label>
+                    <input type="text" name="name" class="form-control" id="editProductName" required>
 
                     <label>Category:</label>
                     <input type="text" name="category" class="form-control" id="editProductCategory" required>

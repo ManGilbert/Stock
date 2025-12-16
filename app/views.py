@@ -255,8 +255,16 @@ def products_view(request):
     })
 
 # --- stock movement view ---
+try:
+    from zoneinfo import ZoneInfo
+    KIGALI_TZ = ZoneInfo("Africa/Kigali")
+except ImportError:
+    import pytz
+    KIGALI_TZ = pytz.timezone("Africa/Kigali")
+
+
 def stock_movement_view(request):
-    # --- Check login ---
+    # --- LOGIN CHECK ---
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
 
@@ -265,101 +273,97 @@ def stock_movement_view(request):
     if role != "admin":
         user = UserInfo.objects.get(id=request.session["user_id"])
 
-    # --- Handle POST ---
+    # --- Handle POST actions ---
     if request.method == "POST":
         action = request.POST.get("action")
+        movement_id = request.POST.get("movement_id")  # For update/delete
 
-        product_id = request.POST.get("product")
-        branch_id = request.POST.get("branch")
-        movement_type = request.POST.get("movement_type")
-        quantity = request.POST.get("quantity")
-        selling_amount = request.POST.get("selling_amount") or None
-        notes = request.POST.get("notes") or ""
-        payment_method = request.POST.get("payment_method") or None
-        movement_id = request.POST.get("movement_id")  # For update
+        if action in ["add", "update"]:
+            product_id = request.POST.get("product")
+            branch_id = request.POST.get("branch")
+            movement_type = request.POST.get("movement_type")
+            quantity = request.POST.get("quantity")
+            selling_amount = request.POST.get("selling_amount") or None
+            notes = request.POST.get("notes") or ""
+            payment_method = request.POST.get("payment_method") or None
 
-        # Basic validation
-        if not product_id or not branch_id or not movement_type or not quantity:
-            messages.error(request, "All fields are required.")
-            return redirect("stock_movement_view")
+            # Validation for add/update only
+            if not product_id or not branch_id or not movement_type or not quantity:
+                messages.error(request, "All fields are required.")
+                return redirect("stock_movement_view")
 
-        try:
-            product = Product.objects.get(id=product_id)
-            branch = Branch.objects.get(id=branch_id)
-            quantity = int(quantity)
+            try:
+                product = Product.objects.get(id=product_id)
+                branch = Branch.objects.get(id=branch_id)
+                quantity = int(quantity)
 
-            if action == "add":
-                StockMovement.objects.create(
-                    product=product,
-                    branch=branch,
-                    movement_type=movement_type,
-                    quantity=quantity,
-                    selling_amount=selling_amount,
-                    notes=notes,
-                    payment_method=payment_method,
-                    created_by=user
-                )
-                messages.success(request, f"{movement_type} movement of {quantity} units for {product.name} recorded successfully.")
+                if action == "add":
+                    StockMovement.objects.create(
+                        product=product,
+                        branch=branch,
+                        movement_type=movement_type,
+                        quantity=quantity,
+                        selling_amount=selling_amount,
+                        notes=notes,
+                        payment_method=payment_method,
+                        created_by=user
+                    )
+                    messages.success(
+                        request,
+                        f"{movement_type} movement of {quantity} units for {product.name} recorded successfully."
+                    )
 
-            elif action == "update":
-                if not movement_id:
-                    messages.error(request, "Invalid movement ID.")
-                    return redirect("stock_movement_view")
+                elif action == "update":
+                    if not movement_id:
+                        messages.error(request, "Invalid movement ID.")
+                        return redirect("stock_movement_view")
 
-                movement = get_object_or_404(StockMovement, id=int(movement_id))
+                    movement = get_object_or_404(StockMovement, id=int(movement_id))
+                    movement.product = product
+                    movement.branch = branch
+                    movement.movement_type = movement_type
+                    movement.quantity = quantity
+                    movement.selling_amount = selling_amount
+                    movement.notes = notes
+                    movement.payment_method = payment_method
+                    movement.save()
+                    messages.success(request, f"Stock movement updated successfully.")
 
-                movement.product = product
-                movement.branch = branch
-                movement.movement_type = movement_type
-                movement.quantity = quantity
-                movement.selling_amount = selling_amount
-                movement.notes = notes
-                movement.payment_method = payment_method
-                movement.save()  # Profit and stock updates handled in model
-                messages.success(request, f"Stock movement updated successfully.")
+            except (Product.DoesNotExist, Branch.DoesNotExist):
+                messages.error(request, "Invalid product or branch selected.")
+            except Exception as e:
+                messages.error(request, str(e))
 
-            elif action == "delete":
-                if not movement_id:
-                    messages.error(request, "Invalid movement ID.")
-                    return redirect("stock_movement_view")
-                movement = get_object_or_404(StockMovement, id=int(movement_id))
-                movement.delete()
-                messages.success(request, "Stock movement deleted successfully.")
+        elif action == "delete":
+            if not movement_id:
+                messages.error(request, "Invalid movement ID.")
+                return redirect("stock_movement_view")
 
-            else:
-                messages.error(request, "Invalid action.")
+            movement = get_object_or_404(StockMovement, id=int(movement_id))
+            movement.delete()
+            messages.success(request, "Stock movement deleted successfully.")
 
-        except (Product.DoesNotExist, Branch.DoesNotExist):
-            messages.error(request, "Invalid product or branch selected.")
-        except Exception as e:
-            messages.error(request, str(e))
+        else:
+            messages.error(request, "Invalid action.")
 
         return redirect("stock_movement_view")
 
-    # --- GET request: list movements ---
-    # ======================================================
-    # GET REQUEST (SHOW LAST 24 HOURS RECORDS)
-    # ======================================================
-    last_24_hours = timezone.now() - timedelta(hours=24)
+    # --- GET request: list last 24 hours movements ---
+    now_kigali = timezone.now().astimezone(KIGALI_TZ)
+    last_24_hours = now_kigali - timedelta(hours=1)
 
     if role == "admin":
-        movements = (
-            StockMovement.objects
-            .filter(created_at__gte=last_24_hours)
-            .select_related("product", "branch", "created_by")
-            .order_by("-id")
+        movements = StockMovement.objects.filter(
+            created_at__gte=last_24_hours
         )
     else:
-        movements = (
-            StockMovement.objects
-            .filter(
-                branch__account=user.account,
-                created_at__gte=last_24_hours
-            )
-            .select_related("product", "branch", "created_by")
-            .order_by("-id")
+        movements = StockMovement.objects.filter(
+            branch__account=user.account,
+            created_at__gte=last_24_hours
         )
-        
+
+    movements = movements.select_related("product", "branch", "created_by").order_by("-id")
+
     # --- Dropdown data ---
     products = Product.objects.filter(account=user.account) if user else Product.objects.all()
     branches = Branch.objects.filter(account=user.account) if user else Branch.objects.all()
@@ -509,4 +513,119 @@ def report_view(request):
         'report_date': report_date,
         'branch_reports': branch_reports,
         'role': role,
+    })
+
+
+def profile_view(request):
+
+    admin_id = request.session.get('admin_id')
+    user_id = request.session.get('user_id')
+
+    # ---------- ADMIN ----------
+    if admin_id:
+        admin = AdminInfo.objects.get(id=admin_id)
+
+        if request.method == 'POST':
+            admin.firstname = request.POST.get('firstname')
+            admin.lastname = request.POST.get('lastname')
+            admin.email = request.POST.get('email')
+            admin.save()
+
+            messages.success(request, 'Profile updated successfully')
+            return redirect('profile_view')
+
+        return render(request, 'profile.html', {
+            'person': admin,
+            'role': 'Admin',
+            'branch': None
+        })
+
+    # ---------- USER ----------
+    elif user_id:
+        user = UserInfo.objects.select_related('account').get(id=user_id)
+
+        if request.method == 'POST':
+            user.firstname = request.POST.get('firstname')
+            user.lastname = request.POST.get('lastname')
+            user.email = request.POST.get('email')
+            user.save()
+
+            messages.success(request, 'Profile updated successfully')
+            return redirect('profile_view')
+
+        return render(request, 'profile.html', {
+            'person': user,
+            'role': user.role.title(),
+            'branch': user.branch.branch_name if hasattr(user, 'branch') and user.branch else None
+        })
+
+    # ---------- NOT LOGGED IN ----------
+    return redirect('login_view')
+
+
+def change_auth_view(request):
+
+    admin_id = request.session.get('admin_id')
+    user_id = request.session.get('user_id')
+
+    # -------- IDENTIFY USER --------
+    if admin_id:
+        person = AdminInfo.objects.get(id=admin_id)
+        user_type = "admin"
+
+    elif user_id:
+        person = UserInfo.objects.get(id=user_id)
+        user_type = "user"
+
+    else:
+        return redirect('login_view')
+
+    # -------- HANDLE POST --------
+    if request.method == "POST":
+
+        action = request.POST.get("action")
+
+        # 🔐 CHANGE PASSWORD
+        if action == "change_password":
+
+            current_password = request.POST.get("current_password")
+            new_password = request.POST.get("password")
+            confirm_password = request.POST.get("confirm_password")
+
+            if not check_password(current_password, person.password):
+                messages.error(request, "Current password is incorrect.")
+                return redirect("change_auth_view")
+
+            if new_password != confirm_password:
+                messages.error(request, "New passwords do not match.")
+                return redirect("change_auth_view")
+
+            if len(new_password) < 6:
+                messages.error(request, "Password must be at least 6 characters.")
+                return redirect("change_auth_view")
+
+            person.password = make_password(new_password)
+            person.save()
+
+            messages.success(request, "Password changed successfully.")
+            return redirect("change_auth_view")
+
+        # 📧 UPDATE EMAIL (2FA BLOCK)
+        elif action == "update_email":
+
+            email = request.POST.get("email")
+
+            if not email:
+                messages.error(request, "Email cannot be empty.")
+                return redirect("change_auth_view")
+
+            person.email = email
+            person.save()
+
+            messages.success(request, "Email updated successfully.")
+            return redirect("change_auth_view")
+
+    return render(request, "reset-auth.html", {
+        "person": person,
+        "user_type": user_type
     })

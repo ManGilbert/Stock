@@ -19,7 +19,12 @@ urlpatterns = [
     # --- Stock URLs ---
     path('stock/stocks', views.stock_view, name='stock_view'),
 
-        # --- Stock URLs ---
+    # --- Stock URLs ---
     path('stock/report', views.report_view, name='report_view'),
+
+    # --- Users Profile URLs ---
+    path('stock/profile/', views.profile_view, name='profile_view'),
+    path('stock/reset/auth', views.change_auth_view, name='change_auth_view'),
+    
     
 ] 

@@ -1,0 +1,52 @@
+/* ===========================
+   SIDEBAR DARK MODE FIX
+   =========================== */
+
+html[data-bs-theme="dark"] .menu {
+    background-color: #151521;
+}
+
+/* Titles */
+html[data-bs-theme="dark"] .sidebar-title {
+    color: #9ca3af;
+}
+
+/* Main links */
+html[data-bs-theme="dark"] .sidebar-link {
+    color: #e5e7eb;
+}
+
+/* Submenu links */
+html[data-bs-theme="dark"] .submenu-link {
+    color: #d1d5db;
+}
+
+/* Hover */
+html[data-bs-theme="dark"] .sidebar-link:hover,
+html[data-bs-theme="dark"] .submenu-item a:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+}
+
+/* Active main item */
+html[data-bs-theme="dark"] .sidebar-item.active > .sidebar-link {
+    background-color: #1f2937;
+    color: #ffffff;
+}
+
+/* Active submenu item */
+html[data-bs-theme="dark"] .submenu-item.active > a {
+    background-color: #374151;
+    color: #ffffff;
+}
+
+/* Icons */
+html[data-bs-theme="dark"] .sidebar-link i {
+    color: #c7d2fe;
+}
+
+/* Smooth animation */
+.sidebar-link,
+.submenu-item a {
+    transition: background-color 0.2s ease, color 0.2s ease;
+}

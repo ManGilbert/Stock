@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Change Password</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="change_password">
+
+                    <div class="form-group my-2">
+                        <label class="form-label">Current Password</label>
+                        <input type="password" name="current_password" class="form-control" required>
+                    </div>
+
+                    <div class="form-group my-2">
+                        <label class="form-label">New Password</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+
+                    <div class="form-group my-2">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" name="confirm_password" class="form-control" required>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">Authentication</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="update_email">
+
+                    <div class="form-group my-2">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ person.email }}" required>
+                    </div>
+
+                    <div class="d-flex justify-content-end">
+                        <button class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
