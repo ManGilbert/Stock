@@ -632,10 +632,48 @@ def report_view(request):
 # -------------------------
 # CREATE ACCOUNT
 # -------------------------
-def create_account_view(request):
-    if request.session.get("role") != "admin":
-        return redirect("login_view")
+
+from django.shortcuts import render, redirect
+from django.db import transaction
+from django.contrib import messages
+from .models import Account, UserInfo, Branch
+
+
+def create_user_wizard(request):
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+
+                account = Account.objects.create(
+                    name=request.POST.get("account_name"),
+                    phone=request.POST.get("account_phone"),
+                    address=request.POST.get("account_address"),
+                )
+
+                manager = UserInfo.objects.create(
+                    account=account,
+                    firstname=request.POST.get("first_name"),
+                    lastname=request.POST.get("last_name"),
+                    email=request.POST.get("email"),
+                    password=request.POST.get("password"),
+                    role="manager",
+                    is_active=True,
+                )
+
+                Branch.objects.create(
+                    account=account,
+                    branch_name=request.POST.get("branch_name"),
+                    manager=manager,
+                )
+
+            # ✅ OUTSIDE transaction.atomic()
+            messages.success(
+                request,
+                "Account, Manager, and Branch created successfully!"
+            )
+            return redirect("create_user_wizard")
+
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
 
     return render(request, "create_user.html")
-
-
