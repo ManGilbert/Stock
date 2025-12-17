@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Create User{% endblock %}
+
+{% block content %}
+
+<!-- jQuery Steps CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.css">
+
+<style>
+    .wizard>.content {
+        min-height: 340px;
+    }
+
+    .form-label {
+        font-weight: 600;
+    }
+
+    .step-help {
+        font-size: 0.9rem;
+    }
+
+    .wizard>.steps .current a {
+        font-weight: bold;
+        color: #0d6efd;
+    }
+</style>
+
+<div class="card my-4">
+    <div class="card-header">
+        <h5 class="card-title">Create New User</h5>
+        <p class="text-muted mb-0">Follow the steps to create a new user account.</p>
+    </div>
+
+    <div class="card-body">
+        <form id="example-form" action="#" novalidate>
+            <div>
+
+                <!-- STEP 1 -->
+                <h6>Account</h6>
+                <section>
+                    <p class="text-muted step-help mb-3">
+                        Basic account information used to identify the user.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Account Name *</label>
+                            <input type="text" name="account_name" class="form-control required"
+                                placeholder="Company or Account name">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone *</label>
+                            <input type="text" name="account_phone" class="form-control required"
+                                placeholder="+250 7xx xxx xxx">
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Address *</label>
+                            <input type="text" name="account_address" class="form-control required"
+                                placeholder="Street, City, Country">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- STEP 2 -->
+                <h6>Profile</h6>
+                <section>
+                    <p class="text-muted step-help mb-3">
+                        Personal and login details for the user.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username *</label>
+                            <input type="text" name="username" class="form-control required"
+                                placeholder="Unique username">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control required email"
+                                placeholder="user@example.com">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" name="first_name" class="form-control required">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" name="last_name" class="form-control required">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password *</label>
+                            <input type="password" id="password" name="password" class="form-control required"
+                                placeholder="Minimum 8 characters">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Confirm Password *</label>
+                            <input type="password" name="confirm_password" class="form-control required"
+                                placeholder="Repeat password">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- STEP 3 -->
+                <h6>Branch</h6>
+                <section>
+                    <p class="text-muted step-help mb-3">
+                        Assign the user to a working branch.
+                    </p>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch Name *</label>
+                            <input type="text" name="branch_name" class="form-control required">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Branch Phone *</label>
+                            <input type="text" name="branch_phone" class="form-control required">
+                        </div>
+
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Branch Address *</label>
+                            <input type="text" name="branch_address" class="form-control required">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- STEP 4 -->
+                <h6>Finish</h6>
+                <section>
+                    <p class="text-muted step-help mb-3">
+                        Review the information and confirm account creation.
+                    </p>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input required" type="checkbox" id="acceptTerms">
+                        <label class="form-check-label" for="acceptTerms">
+                            I agree to the Terms and Conditions
+                        </label>
+                    </div>
+                </section>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- jQuery Validate -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+
+<!-- jQuery Steps -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+
+        var form = $("#example-form");
+
+        form.validate({
+            errorClass: "text-danger",
+            errorElement: "small",
+            rules: {
+                confirm_password: {
+                    equalTo: "#password"
+                }
+            },
+            messages: {
+                email: "Please enter a valid email address",
+                confirm_password: "Passwords must match"
+            }
+        });
+
+        // Validate on blur (usability improvement)
+        $("input").on("blur", function () {
+            $(this).valid();
+        });
+
+        $("#example-form > div").steps({
+            headerTag: "h6",
+            bodyTag: "section",
+            transitionEffect: "slideLeft",
+            autoFocus: true,
+
+            labels: {
+                next: "Next Step",
+                previous: "Back",
+                finish: "Create User"
+            },
+
+            onStepChanging: function (event, currentIndex, newIndex) {
+                if (currentIndex > newIndex) return true;
+                form.validate().settings.ignore = ":hidden,:disabled";
+                return form.valid();
+            },
+
+            onFinished: function () {
+                $(".actions a").addClass("disabled");
+                alert("User created successfully!");
+                // form.submit();
+            }
+        });
+    });
+</script>
+
+{% endblock %}

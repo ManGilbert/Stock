@@ -157,6 +157,120 @@ def _authenticate_user(email, password):
         return user
     return None
 
+def profile_view(request):
+
+    admin_id = request.session.get('admin_id')
+    user_id = request.session.get('user_id')
+
+    # ---------- ADMIN ----------
+    if admin_id:
+        admin = AdminInfo.objects.get(id=admin_id)
+
+        if request.method == 'POST':
+            admin.firstname = request.POST.get('firstname')
+            admin.lastname = request.POST.get('lastname')
+            admin.email = request.POST.get('email')
+            admin.save()
+
+            messages.success(request, 'Profile updated successfully')
+            return redirect('profile_view')
+
+        return render(request, 'profile.html', {
+            'person': admin,
+            'role': 'Admin',
+            'branch': None
+        })
+
+    # ---------- USER ----------
+    elif user_id:
+        user = UserInfo.objects.select_related('account').get(id=user_id)
+
+        if request.method == 'POST':
+            user.firstname = request.POST.get('firstname')
+            user.lastname = request.POST.get('lastname')
+            user.email = request.POST.get('email')
+            user.save()
+
+            messages.success(request, 'Profile updated successfully')
+            return redirect('profile_view')
+
+        return render(request, 'profile.html', {
+            'person': user,
+            'role': user.role.title(),
+            'branch': user.branch.branch_name if hasattr(user, 'branch') and user.branch else None
+        })
+
+    # ---------- NOT LOGGED IN ----------
+    return redirect('login_view')
+
+
+def change_auth_view(request):
+
+    admin_id = request.session.get('admin_id')
+    user_id = request.session.get('user_id')
+
+    # -------- IDENTIFY USER --------
+    if admin_id:
+        person = AdminInfo.objects.get(id=admin_id)
+        user_type = "admin"
+
+    elif user_id:
+        person = UserInfo.objects.get(id=user_id)
+        user_type = "user"
+
+    else:
+        return redirect('login_view')
+
+    # -------- HANDLE POST --------
+    if request.method == "POST":
+
+        action = request.POST.get("action")
+
+        # CHANGE PASSWORD
+        if action == "change_password":
+
+            current_password = request.POST.get("current_password")
+            new_password = request.POST.get("password")
+            confirm_password = request.POST.get("confirm_password")
+
+            if not check_password(current_password, person.password):
+                messages.error(request, "Current password is incorrect.")
+                return redirect("change_auth_view")
+
+            if new_password != confirm_password:
+                messages.error(request, "New passwords do not match.")
+                return redirect("change_auth_view")
+
+            if len(new_password) < 6:
+                messages.error(request, "Password must be at least 6 characters.")
+                return redirect("change_auth_view")
+
+            person.password = make_password(new_password)
+            person.save()
+
+            messages.success(request, "Password changed successfully.")
+            return redirect("change_auth_view")
+
+        # UPDATE EMAIL (2FA BLOCK)
+        elif action == "update_email":
+
+            email = request.POST.get("email")
+
+            if not email:
+                messages.error(request, "Email cannot be empty.")
+                return redirect("change_auth_view")
+
+            person.email = email
+            person.save()
+
+            messages.success(request, "Email updated successfully.")
+            return redirect("change_auth_view")
+
+    return render(request, "reset-auth.html", {
+        "person": person,
+        "user_type": user_type
+    })
+
 
 def logout_view(request):
     request.session.flush()
@@ -515,117 +629,13 @@ def report_view(request):
         'role': role,
     })
 
+# -------------------------
+# CREATE ACCOUNT
+# -------------------------
+def create_account_view(request):
+    if request.session.get("role") != "admin":
+        return redirect("login_view")
 
-def profile_view(request):
-
-    admin_id = request.session.get('admin_id')
-    user_id = request.session.get('user_id')
-
-    # ---------- ADMIN ----------
-    if admin_id:
-        admin = AdminInfo.objects.get(id=admin_id)
-
-        if request.method == 'POST':
-            admin.firstname = request.POST.get('firstname')
-            admin.lastname = request.POST.get('lastname')
-            admin.email = request.POST.get('email')
-            admin.save()
-
-            messages.success(request, 'Profile updated successfully')
-            return redirect('profile_view')
-
-        return render(request, 'profile.html', {
-            'person': admin,
-            'role': 'Admin',
-            'branch': None
-        })
-
-    # ---------- USER ----------
-    elif user_id:
-        user = UserInfo.objects.select_related('account').get(id=user_id)
-
-        if request.method == 'POST':
-            user.firstname = request.POST.get('firstname')
-            user.lastname = request.POST.get('lastname')
-            user.email = request.POST.get('email')
-            user.save()
-
-            messages.success(request, 'Profile updated successfully')
-            return redirect('profile_view')
-
-        return render(request, 'profile.html', {
-            'person': user,
-            'role': user.role.title(),
-            'branch': user.branch.branch_name if hasattr(user, 'branch') and user.branch else None
-        })
-
-    # ---------- NOT LOGGED IN ----------
-    return redirect('login_view')
+    return render(request, "create_user.html")
 
 
-def change_auth_view(request):
-
-    admin_id = request.session.get('admin_id')
-    user_id = request.session.get('user_id')
-
-    # -------- IDENTIFY USER --------
-    if admin_id:
-        person = AdminInfo.objects.get(id=admin_id)
-        user_type = "admin"
-
-    elif user_id:
-        person = UserInfo.objects.get(id=user_id)
-        user_type = "user"
-
-    else:
-        return redirect('login_view')
-
-    # -------- HANDLE POST --------
-    if request.method == "POST":
-
-        action = request.POST.get("action")
-
-        # 🔐 CHANGE PASSWORD
-        if action == "change_password":
-
-            current_password = request.POST.get("current_password")
-            new_password = request.POST.get("password")
-            confirm_password = request.POST.get("confirm_password")
-
-            if not check_password(current_password, person.password):
-                messages.error(request, "Current password is incorrect.")
-                return redirect("change_auth_view")
-
-            if new_password != confirm_password:
-                messages.error(request, "New passwords do not match.")
-                return redirect("change_auth_view")
-
-            if len(new_password) < 6:
-                messages.error(request, "Password must be at least 6 characters.")
-                return redirect("change_auth_view")
-
-            person.password = make_password(new_password)
-            person.save()
-
-            messages.success(request, "Password changed successfully.")
-            return redirect("change_auth_view")
-
-        # 📧 UPDATE EMAIL (2FA BLOCK)
-        elif action == "update_email":
-
-            email = request.POST.get("email")
-
-            if not email:
-                messages.error(request, "Email cannot be empty.")
-                return redirect("change_auth_view")
-
-            person.email = email
-            person.save()
-
-            messages.success(request, "Email updated successfully.")
-            return redirect("change_auth_view")
-
-    return render(request, "reset-auth.html", {
-        "person": person,
-        "user_type": user_type
-    })
