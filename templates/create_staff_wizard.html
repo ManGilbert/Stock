@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Manage Staff{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.css">
+
+<div class="card my-4">
+    <div class="card-header">
+        <h5>Staff – {{ branch.branch_name }}</h5>
+        <p class="text-muted mb-0">
+            Staff created here will belong to this branch only
+        </p>
+    </div>
+
+    <div class="card-body">
+
+        <!-- ================= WIZARD FORM ================= -->
+        <form id="staff-form" action="{% url 'manager_staff_wizard' %}" method="post">
+            {% csrf_token %}
+            <div id="wizard">
+
+                <h6>Staff Info</h6>
+                <section>
+                    <input name="first_name" class="form-control mb-2 required" placeholder="First Name">
+                    <input name="last_name" class="form-control mb-2 required" placeholder="Last Name">
+                    <input name="email" type="email" class="form-control mb-2 required" placeholder="Email">
+                    <input id="password" name="password" type="password"
+                           class="form-control mb-2 required" placeholder="Password">
+                    <input name="confirm_password" type="password"
+                           class="form-control required" placeholder="Confirm Password">
+                </section>
+
+                <h6>Confirm</h6>
+                <section>
+                    <div class="form-check">
+                        <input type="checkbox" name="agree" class="form-check-input" id="agree">
+                        <label class="form-check-label" for="agree">
+                            Confirm staff creation
+                        </label>
+                    </div>
+                </section>
+
+            </div>
+        </form>
+
+        <hr class="my-4">
+
+        <!-- ================= STAFF LIST ================= -->
+        <h6>Current Staff</h6>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for s in staff_list %}
+                <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td>{{ s.firstname }} {{ s.lastname }}</td>
+                    <td>{{ s.email }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">
+                        No staff found for this branch
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.js"></script>
+
+<script>
+$(function () {
+
+    var form = $("#staff-form");
+
+    form.validate({
+        errorClass: "text-danger",
+        rules: {
+            confirm_password: { equalTo: "#password" },
+            agree: { required: true }
+        }
+    });
+
+    $("#wizard").steps({
+        headerTag: "h6",
+        bodyTag: "section",
+        transitionEffect: "slideLeft",
+        labels: { finish: "Create Staff" },
+        onStepChanging: function () {
+            form.validate().settings.ignore = ":hidden";
+            return form.valid();
+        },
+        onFinished: function () {
+            form.submit();
+        }
+    });
+
+});
+</script>
+
+{% endblock %}

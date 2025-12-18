@@ -48,7 +48,7 @@ class SessionExpiredMiddleware:
 
         return response
 
-
+# ---------- login section ----------
 def login_view(request):
     # Show session expired message if redirected
     if request.GET.get("session_expired"):
@@ -157,6 +157,7 @@ def _authenticate_user(email, password):
         return user
     return None
 
+# ---------- user profile section ----------
 def profile_view(request):
 
     admin_id = request.session.get('admin_id')
@@ -203,7 +204,7 @@ def profile_view(request):
     # ---------- NOT LOGGED IN ----------
     return redirect('login_view')
 
-
+# ---------- User change password ----------
 def change_auth_view(request):
 
     admin_id = request.session.get('admin_id')
@@ -276,7 +277,7 @@ def logout_view(request):
     request.session.flush()
     return redirect('login_view')
 
-
+# ---------- product section ----------
 def products_view(request):
     # Check login
     if not request.session.get('user_id') and not request.session.get('admin_id'):
@@ -368,7 +369,8 @@ def products_view(request):
         'user': user  # make sure we pass user for the branch dropdown
     })
 
-# --- stock movement view ---
+
+# --- stock movement view section ---
 try:
     from zoneinfo import ZoneInfo
     KIGALI_TZ = ZoneInfo("Africa/Kigali")
@@ -633,13 +635,11 @@ def report_view(request):
 # CREATE ACCOUNT
 # -------------------------
 
-from django.shortcuts import render, redirect
-from django.db import transaction
-from django.contrib import messages
-from .models import Account, UserInfo, Branch
-
-
 def create_user_wizard(request):
+    if request.session.get("role") != "admin":
+        messages.error(request, "Access denied.")
+        return redirect("index")
+
     if request.method == "POST":
         try:
             with transaction.atomic():
@@ -677,3 +677,116 @@ def create_user_wizard(request):
             messages.error(request, f"Error: {str(e)}")
 
     return render(request, "create_user.html")
+
+
+def create_branch_with_manager(request):
+
+    # 🔐 LOGIN CHECK (manual, since no Django auth)
+    if not request.session.get("user_id"):
+        return redirect("login_view")
+
+    if request.session.get("role") != "manager":
+        messages.error(request, "Access denied.")
+        return redirect("index")
+
+    # ✅ Get account from session
+    account_id = request.session.get("account_id")
+
+    if not account_id:
+        messages.error(request, "Account not found in session.")
+        return redirect("index")
+
+    account = Account.objects.get(id=account_id)
+
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+
+                manager = UserInfo.objects.create(
+                    account=account,
+                    firstname=request.POST.get("first_name"),
+                    lastname=request.POST.get("last_name"),
+                    email=request.POST.get("email"),
+                    password=make_password(request.POST.get("password")),
+                    role="manager",
+                    is_active=True,
+                )
+
+                Branch.objects.create(
+                    account=account,
+                    branch_name=request.POST.get("branch_name"),
+                    manager=manager,
+                )
+
+            messages.success(
+                request,
+                "Branch and Manager created successfully!"
+            )
+            return redirect("create_branch_with_manager")
+
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+
+    return render(request, "create_branch.html")
+
+
+def manager_staff_wizard(request):
+
+    # 🔐 AUTH CHECK
+    if not request.session.get("user_id"):
+        return redirect("login_view")
+
+    if request.session.get("role") != "manager":
+        messages.error(request, "Access denied.")
+        return redirect("index")
+
+    manager = UserInfo.objects.get(id=request.session["user_id"])
+
+    # ✅ Manager's branch
+    branch = Branch.objects.filter(manager=manager).first()
+
+    if not branch:
+        messages.error(request, "No branch assigned to you.")
+        return redirect("index")
+
+    # ================= CREATE STAFF =================
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+
+                email = request.POST.get("email")
+
+                if UserInfo.objects.filter(email=email).exists():
+                    messages.error(request, "Email already exists.")
+                    return redirect("manager_staff_wizard")
+
+                UserInfo.objects.create(
+                    account=manager.account,
+                    branch=branch,  # ✅ FIXED
+                    firstname=request.POST.get("first_name"),
+                    lastname=request.POST.get("last_name"),
+                    email=email,
+                    password=make_password(request.POST.get("password")),
+                    role="staff",
+                    is_active=True,
+                )
+
+                messages.success(request, "Staff created successfully.")
+
+        except Exception as e:
+            messages.error(request, str(e))
+
+        return redirect("manager_staff_wizard")
+
+    # ================= VIEW STAFF =================
+    staff_list = UserInfo.objects.filter(
+        role="staff",
+        branch=branch
+    ).order_by("-id")
+
+    return render(request, "create_staff_wizard.html", {
+        "branch": branch,
+        "staff_list": staff_list
+    })
+
+

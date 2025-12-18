@@ -27,13 +27,8 @@ urlpatterns = [
     path('stock/user/account/reset/auth', views.change_auth_view, name='change_auth_view'),
     
     # --- create Users URLs ---
-    #path("stock/admin/account/create/", views.create_account_view, name="create_account_view"),
-    #path("create-user/", views.create_user_wizard, name="create_user_wizard"),
-        path(
-        "stock/admin/account/create/",
-        views.create_user_wizard,
-        name="create_user_wizard"
-    ),
-
+    path("stock/admin/account/create/", views.create_user_wizard, name="create_user_wizard"),
+    path("branch/create/", views.create_branch_with_manager, name="create_branch_with_manager"),
+    path('manager/staff/create/', views.manager_staff_wizard, name='manager_staff_wizard'),
 
 ] 

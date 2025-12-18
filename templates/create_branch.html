@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Create Branch{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.css">
+
+<div class="card my-4">
+    <div class="card-header">
+        <h5 class="card-title">Create Branch & Assign Manager</h5>
+        <p class="text-muted mb-0">
+            Add a new branch and assign a branch manager.
+        </p>
+    </div>
+
+    <div class="card-body">
+        <form id="branch-form" method="POST">
+            {% csrf_token %}
+            <div>
+
+                <!-- STEP 1 -->
+                <h6>Branch Manager</h6>
+                <section>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name *</label>
+                            <input type="text" name="first_name" class="form-control required">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name *</label>
+                            <input type="text" name="last_name" class="form-control required">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control required email">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Password *</label>
+                            <input type="password" id="password" name="password"
+                                   class="form-control required">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Confirm Password *</label>
+                            <input type="password" name="confirm_password"
+                                   class="form-control required">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- STEP 2 -->
+                <h6>Branch</h6>
+                <section>
+                    <div class="mb-3">
+                        <label class="form-label">Branch Name *</label>
+                        <input type="text" name="branch_name"
+                               class="form-control required">
+                    </div>
+                </section>
+
+                <!-- STEP 3 -->
+                <h6>Finish</h6>
+                <section>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               name="agree" id="agree">
+                        <label class="form-check-label" for="agree">
+                            I confirm the information is correct
+                        </label>
+                    </div>
+                </section>
+
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.js"></script>
+
+<script>
+    $(function () {
+        var form = $("#branch-form");
+
+        form.validate({
+            errorClass: "text-danger",
+            rules: {
+                confirm_password: {
+                    equalTo: "#password"
+                },
+                agree: {
+                    required: true
+                }
+            }
+        });
+
+        $("#branch-form > div").steps({
+            headerTag: "h6",
+            bodyTag: "section",
+            transitionEffect: "slideLeft",
+            labels: {
+                finish: "Create Branch"
+            },
+            onStepChanging: function (event, currentIndex, newIndex) {
+                if (currentIndex > newIndex) return true;
+                form.validate().settings.ignore = ":hidden";
+                return form.valid();
+            },
+            onFinished: function () {
+                form.submit();
+            }
+        });
+    });
+</script>
+
+{% endblock %}

@@ -118,7 +118,13 @@
                             </a>
                             <ul class="submenu">
                                 <li class="submenu-item active">
-                                    <a href="{% url 'create_user_wizard' %}" class="submenu-link">Create user</a>
+                                    <a href="{% url 'create_branch_with_manager' %}" class="submenu-link">Create Branch</a>
+                                </li>
+                                <li class="submenu-item">
+                                    <a href="{% url 'manager_staff_wizard' %}" class="submenu-link">Create Staff</a>
+                                </li>
+                                <li class="submenu-item active">
+                                    <a href="{% url 'create_user_wizard' %}" class="submenu-link">Create Account</a>
                                 </li>
                                 <li class="submenu-item ">
                                     <a href="{% url 'profile_view' %}" class="submenu-link">Profile</a>

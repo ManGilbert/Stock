@@ -57,6 +57,13 @@ class UserInfo(models.Model):
     password = models.CharField(max_length=255)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
+    branch = models.ForeignKey(
+        'Branch',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='staff'  # staff in this branch
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
@@ -84,7 +91,13 @@ class UserInfo(models.Model):
 class Branch(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name='branches')
     branch_name = models.CharField(max_length=100)
-    manager = models.ForeignKey(UserInfo, on_delete=models.SET_NULL, null=True, blank=True)
+    manager = models.ForeignKey(
+        UserInfo,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='managed_branch'  # branch that this user manages
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -130,7 +143,8 @@ class Stock(models.Model):
             raise ValidationError("Cannot delete Stock with quantity greater than 0.")
         super().delete(*args, **kwargs)
 
-# -------------------- 6. Stock Movements --------------------
+
+# -------------------- 7. Stock Movements --------------------
 class StockMovement(models.Model):
     MOVEMENT_CHOICES = (
         ('IN', 'IN'),
@@ -142,19 +156,18 @@ class StockMovement(models.Model):
         ('momo', 'Mobile Money'),
     )
 
-    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='movements')
-    branch = models.ForeignKey('Branch', on_delete=models.CASCADE, related_name='movements')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='movements')
+    branch = models.ForeignKey(Branch, on_delete=models.CASCADE, related_name='movements')
     movement_type = models.CharField(max_length=10, choices=MOVEMENT_CHOICES)
     quantity = models.IntegerField()
     selling_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     profit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_method = models.CharField(max_length=10, choices=PAYMENT_CHOICES, null=True, blank=True)
     notes = models.TextField(blank=True, null=True)
-    created_by = models.ForeignKey('UserInfo', on_delete=models.SET_NULL, null=True, blank=True)
+    created_by = models.ForeignKey(UserInfo, on_delete=models.SET_NULL, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        """Validate stock before saving OUT movements."""
         if self.movement_type == 'OUT':
             stock = Stock.objects.filter(product=self.product, branch=self.branch).first()
             if not stock or self.quantity > stock.quantity:
@@ -165,17 +178,14 @@ class StockMovement(models.Model):
                 raise ValidationError("Payment method is required for OUT movements.")
 
     def save(self, *args, **kwargs):
-        self.clean()  # Validate first
-
-        # ---------- CALCULATE PROFIT ----------
+        self.clean()
         if self.movement_type == 'OUT':
             cost_total = float(self.product.cost_price) * self.quantity
             selling_total = float(self.selling_amount or 0)
             self.profit = selling_total - cost_total
         else:
-            self.profit = 0  # No profit for IN movements
+            self.profit = 0
 
-        # ---------- HANDLE STOCK ----------
         with transaction.atomic():
             stock, created = Stock.objects.get_or_create(
                 product=self.product,
@@ -183,7 +193,6 @@ class StockMovement(models.Model):
                 defaults={'quantity': 0}
             )
 
-            # Reverse old movement if editing
             if self.pk:
                 old = StockMovement.objects.get(pk=self.pk)
                 if old.movement_type == 'IN':
@@ -193,7 +202,6 @@ class StockMovement(models.Model):
 
             before_qty = stock.quantity
 
-            # Apply new movement
             if self.movement_type == 'IN':
                 stock.quantity += self.quantity
             elif self.movement_type == 'OUT':
@@ -202,7 +210,6 @@ class StockMovement(models.Model):
             stock.save()
             super().save(*args, **kwargs)
 
-            # Log the movement
             StockMovementLog.objects.create(
                 movement=self,
                 before_qty=before_qty,
@@ -213,7 +220,6 @@ class StockMovement(models.Model):
             )
 
     def delete(self, *args, **kwargs):
-        """Update stock when deleting a movement."""
         with transaction.atomic():
             stock = Stock.objects.get(product=self.product, branch=self.branch)
 
@@ -227,10 +233,7 @@ class StockMovement(models.Model):
             elif self.movement_type == 'OUT':
                 stock.quantity += self.quantity
 
-            before_qty = (
-                stock.quantity + self.quantity if self.movement_type == "IN"
-                else stock.quantity - self.quantity
-            )
+            before_qty = stock.quantity + self.quantity if self.movement_type == "IN" else stock.quantity - self.quantity
             after_qty = stock.quantity
 
             stock.save()
@@ -256,7 +259,7 @@ class StockMovementLog(models.Model):
     profit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_method = models.CharField(max_length=10, null=True, blank=True)
     changed_at = models.DateTimeField(auto_now_add=True)
-    changed_by = models.ForeignKey('UserInfo', on_delete=models.SET_NULL, null=True, blank=True)
+    changed_by = models.ForeignKey(UserInfo, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return f"Log: {self.movement.product.name} ({self.before_qty} -> {self.after_qty}) profit={self.profit}"

@@ -30,10 +30,10 @@
             <small class="text-muted" id="paginationInfo"></small>
         </div>
         <center>
-            <label>Only view record's for today 
-            <label class="breadcrumb-item">
-                <a href="{% url 'stock_movement_all_records_view' %}">Clicks to view all records</a>
-            </label>
+            <label>Only view record's for today
+                <label class="breadcrumb-item">
+                    <a href="{% url 'stock_movement_all_records_view' %}">Clicks to view all records</a>
+                </label>
             </label>
         </center>
         <!-- MOVEMENTS LIST : SMALL + COMPACT + SCROLLABLE ON MOBILE -->
@@ -43,21 +43,21 @@
             <div class="list-group small" id="movementsList" style="min-width: 720px;">
 
                 <!-- HEADER -->
-<div class="list-group-item py-1 fw-bold bg-body-tertiary">
-    <div class="d-flex">
-        <span class="me-2" style="width:14%">Product</span>
-        <span class="me-2" style="width:12%">Branch</span>
-        <span class="me-2" style="width:6%">Type</span>
-        <span class="me-2 text-center" style="width:6%">Qty</span>
-        <span class="me-2" style="width:12%">Amount</span>
-        <span class="me-2" style="width:12%">Profit</span>
-        <span class="me-2" style="width:10%">Pay</span>
-        <span class="me-2" style="width:10%">Notes</span>
-        <span class="me-2" style="width:10%">By</span>
-        <span class="me-2" style="width:8%">Time</span>
-        <span style="width:6%">Act</span>
-    </div>
-</div>
+                <div class="list-group-item py-1 fw-bold bg-body-tertiary">
+                    <div class="d-flex">
+                        <span class="me-2" style="width:14%">Product</span>
+                        <span class="me-2" style="width:12%">Branch</span>
+                        <span class="me-2" style="width:6%">Type</span>
+                        <span class="me-2 text-center" style="width:6%">Qty</span>
+                        <span class="me-2" style="width:12%">Amount</span>
+                        <span class="me-2" style="width:12%">Profit</span>
+                        <span class="me-2" style="width:10%">Pay</span>
+                        <span class="me-2" style="width:10%">Notes</span>
+                        <span class="me-2" style="width:10%">By</span>
+                        <span class="me-2" style="width:8%">Time</span>
+                        <span style="width:6%">Act</span>
+                    </div>
+                </div>
 
 
                 {% for movement in movements %}
