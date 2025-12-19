@@ -17,7 +17,7 @@
     <div class="card-body">
 
         <!-- ================= WIZARD FORM ================= -->
-        <form id="staff-form" action="{% url 'manager_staff_wizard' %}" method="post">
+        <form id="staff-form" action="{% url 'create_staff_with_manager' %}" method="post">
             {% csrf_token %}
             <div id="wizard">
 

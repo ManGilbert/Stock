@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Null</title>
+    <title>Stock</title>
 
     <link rel="stylesheet" href="{% static 'assets/css/bootstrap.css' %}">
     <link rel="stylesheet" href="{% static 'assets/vendors/iconly/bold.css' %}">
@@ -117,22 +117,34 @@
                                 <span>Account</span>
                             </a>
                             <ul class="submenu">
+
+                                {% if role == "manager" %}
                                 <li class="submenu-item active">
-                                    <a href="{% url 'create_branch_with_manager' %}" class="submenu-link">Create Branch</a>
+                                    <a href="{% url 'create_branch_with_manager' %}" class="submenu-link">Create
+                                        Branch</a>
                                 </li>
                                 <li class="submenu-item">
-                                    <a href="{% url 'manager_staff_wizard' %}" class="submenu-link">Create Staff</a>
+                                    <a href="{% url 'create_staff_with_manager' %}" class="submenu-link">Create
+                                        Staff</a>
                                 </li>
+                                {% endif %}
+
+                                {% if role == "admin" %}
                                 <li class="submenu-item active">
-                                    <a href="{% url 'create_user_wizard' %}" class="submenu-link">Create Account</a>
+                                    <a href="{% url 'create_user_account' %}" class="submenu-link">Create Account</a>
                                 </li>
-                                <li class="submenu-item ">
+                                {% endif %}
+
+                                <li class="submenu-item">
                                     <a href="{% url 'profile_view' %}" class="submenu-link">Profile</a>
                                 </li>
+
                                 <li class="submenu-item">
                                     <a href="{% url 'change_auth_view' %}" class="submenu-link">Security</a>
                                 </li>
+
                             </ul>
+
                         </li>
                 </div>
                 <button class="sidebar-toggler btn x"><i data-feather="x"></i></button>
@@ -257,18 +269,26 @@
         </div>
     </div>
 
-    <script src="{% static 'assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js' %}"></script>
-    <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
-    <script src="{% static 'assets/vendors/toastify/toastify.js' %}"></script>
-    <script src="{% static 'assets/js/extensions/toastify.js' %}"></script>
-    <script src="{% static 'assets/js/main.js' %}"></script>
-    <script src="{% static 'assets/js/pages/dashboard.js ' %}"></script>
-    <script src="{% static 'assets/vendors/apexcharts/apexcharts.js' %}"></script>
-    <script src="{% static 'assets/vendors/simple-datatables/simple-datatables.js' %}"></script>
+<!-- Core -->
+<script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
 
-    <script src="{% static 'assets/js/components/dark.js' %}" defer></script>
-    <script src="assets/compiled/js/app.js"></script>
+<!-- Vendors -->
+<script src="{% static 'assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js' %}"></script>
+<script src="{% static 'assets/vendors/apexcharts/apexcharts.js' %}"></script>
+<script src="{% static 'assets/vendors/simple-datatables/simple-datatables.js' %}"></script>
+<script src="{% static 'assets/vendors/toastify/toastify.js' %}"></script>
+
+<!-- App -->
+<script src="{% static 'assets/js/main.js' %}"></script>
+<script src="{% static 'assets/js/extensions/toastify.js' %}"></script>
+<script src="{% static 'assets/js/pages/dashboard.js' %}"></script>
+
+<!-- Theme -->
+<script src="{% static 'assets/js/components/dark.js' %}" defer></script>
+<script src="{% static 'assets/static/js/initTheme.js' %}"></script>
+
 </body>
+
 {% if messages %}
 {% for message in messages %}
 <script>

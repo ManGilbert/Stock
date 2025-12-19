@@ -24,3 +24,10 @@ def user_account_info(request):
         'account_name': account_name,
         'branch_name': branch_name
     }
+
+def session_context(request):
+    return {
+        "role": request.session.get("role"),
+        "user_name": request.session.get("user_name"),
+        "branch_name": request.session.get("branch_name"),
+    }

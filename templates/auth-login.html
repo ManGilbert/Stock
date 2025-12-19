@@ -22,7 +22,7 @@
             <div class="col-lg-5 col-12">
                 <div id="auth-left">
                     <div class="auth-logo">
-                        <a href="index.html"><img src="{% static 'assets/images/logo/logo.png' %}" alt="Logo"></a>
+                        <a href="{% url 'index' %}"><img src="{% static 'assets/images/logo/logo.png' %}" alt="Logo"></a>
                     </div>
                     <h5 class="auth-title">Log in.</h5>
                     <p class="auth-subtitle mb-1">Log in with your data that you entered during registration.</p>
@@ -34,7 +34,7 @@
                         <div class="input-group mb-3">
                             <label class="input-group-text" for="inputGroupSelect01">User Options</label>
                             <select name="user_type" class="form-select" id="inputGroupSelect01">
-                                <option value="">Select User Type</option>
+                                <option value="">Select User Options</option>
                                 <option value="admin">Admin</option>
                                 <option value="user">Account User</option>
                             </select>

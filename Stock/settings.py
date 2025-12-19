@@ -68,6 +68,9 @@ TEMPLATES = [
 
                 # Add your context processor here
                 'app.context_processors.user_account_info',
+                # This makes role, user_name, etc. available in ALL templates, including your sidebar.
+                'app.context_processors.session_context',
+
             ],
         },
     },

@@ -292,6 +292,7 @@ def products_view(request):
         user = UserInfo.objects.get(id=request.session["user_id"])
         products = Product.objects.filter(account=user.account).order_by("-id")
 
+
     # Handle POST actions
     if request.method == "POST":
         action = request.POST.get("action")
@@ -527,6 +528,10 @@ def stock_view(request):
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
 
+    if request.session.get("role") == "staff":
+        messages.error(request, "Access denied.")
+        return redirect("index")
+
     role = request.session.get('role')
     user = None
     branch = None
@@ -635,7 +640,7 @@ def report_view(request):
 # CREATE ACCOUNT
 # -------------------------
 
-def create_user_wizard(request):
+def create_user_account(request):
     if request.session.get("role") != "admin":
         messages.error(request, "Access denied.")
         return redirect("index")
@@ -666,22 +671,22 @@ def create_user_wizard(request):
                     manager=manager,
                 )
 
-            # ✅ OUTSIDE transaction.atomic()
+            # OUTSIDE transaction.atomic()
             messages.success(
                 request,
                 "Account, Manager, and Branch created successfully!"
             )
-            return redirect("create_user_wizard")
+            return redirect("create_user_account")
 
         except Exception as e:
             messages.error(request, f"Error: {str(e)}")
 
-    return render(request, "create_user.html")
+    return render(request, "create_user_account.html")
 
 
 def create_branch_with_manager(request):
 
-    # 🔐 LOGIN CHECK (manual, since no Django auth)
+    # LOGIN CHECK (manual, since no Django auth)
     if not request.session.get("user_id"):
         return redirect("login_view")
 
@@ -689,7 +694,7 @@ def create_branch_with_manager(request):
         messages.error(request, "Access denied.")
         return redirect("index")
 
-    # ✅ Get account from session
+    # Get account from session
     account_id = request.session.get("account_id")
 
     if not account_id:
@@ -730,9 +735,9 @@ def create_branch_with_manager(request):
     return render(request, "create_branch.html")
 
 
-def manager_staff_wizard(request):
+def create_staff_with_manager(request):
 
-    # 🔐 AUTH CHECK
+    # AUTH CHECK
     if not request.session.get("user_id"):
         return redirect("login_view")
 
@@ -742,7 +747,7 @@ def manager_staff_wizard(request):
 
     manager = UserInfo.objects.get(id=request.session["user_id"])
 
-    # ✅ Manager's branch
+    # Manager's branch
     branch = Branch.objects.filter(manager=manager).first()
 
     if not branch:
@@ -758,11 +763,11 @@ def manager_staff_wizard(request):
 
                 if UserInfo.objects.filter(email=email).exists():
                     messages.error(request, "Email already exists.")
-                    return redirect("manager_staff_wizard")
+                    return redirect("create_staff_with_manager")
 
                 UserInfo.objects.create(
                     account=manager.account,
-                    branch=branch,  # ✅ FIXED
+                    branch=branch,  # FIXED
                     firstname=request.POST.get("first_name"),
                     lastname=request.POST.get("last_name"),
                     email=email,
@@ -776,7 +781,7 @@ def manager_staff_wizard(request):
         except Exception as e:
             messages.error(request, str(e))
 
-        return redirect("manager_staff_wizard")
+        return redirect("create_staff_with_manager")
 
     # ================= VIEW STAFF =================
     staff_list = UserInfo.objects.filter(
@@ -784,7 +789,7 @@ def manager_staff_wizard(request):
         branch=branch
     ).order_by("-id")
 
-    return render(request, "create_staff_wizard.html", {
+    return render(request, "create_staff.html", {
         "branch": branch,
         "staff_list": staff_list
     })
