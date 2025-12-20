@@ -31,6 +31,9 @@ class Account(models.Model):
     name = models.CharField(max_length=100)
     address = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
+
+    is_active = models.BooleanField(default=True)  # ✅ ADD THIS
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

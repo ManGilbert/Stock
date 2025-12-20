@@ -31,4 +31,7 @@ urlpatterns = [
     path("stock/create/branch/", views.create_branch_with_manager, name="create_branch_with_manager"),
     path('stock/manager/create/staff/', views.create_staff_with_manager, name='create_staff_with_manager'),
 
+     # --- settings URLs ---
+    path("stock/settings/", views.settings_view, name="settings_view"),
+
 ] 

@@ -17,6 +17,8 @@ from django.utils import timezone
 from datetime import timedelta
 from django.db.models import Sum
 from .models import StockMovement, UserInfo, Branch
+from django.db import transaction
+
 
 # ---------- Send logged user to index ----------
 def index(request):
@@ -78,12 +80,9 @@ def login_view(request):
             messages.error(request, "Invalid admin email or password.")
             return render(request, "auth-login.html")
 
-        # SESSION
         request.session["admin_id"] = user.id
         request.session["role"] = "admin"
         request.session["user_name"] = user.firstname
-
-        # 30-minute Auto Expire
         request.session.set_expiry(1800)
 
         messages.success(request, "Logged in successfully!")
@@ -96,8 +95,17 @@ def login_view(request):
             messages.error(request, "Invalid user email or password.")
             return render(request, "auth-login.html")
 
+        # ---------- BLOCK DISABLED ACCOUNT ----------
+        if not user.account or not user.account.is_active:
+            messages.error(
+                request,
+                "Your subscription has expired. Please contact the administrator."
+            )
+            return render(request, "auth-login.html")
+
+        # ---------- BLOCK DISABLED USER ----------
         if not user.is_active:
-            messages.error(request, "Your account is disabled.")
+            messages.error(request, "Your user access is disabled.")
             return render(request, "auth-login.html")
 
         # Determine branch info
@@ -109,7 +117,7 @@ def login_view(request):
             if branch:
                 branch_name = branch.branch_name
                 branch_id = branch.id
-        else:  # For staff or other roles
+        else:  # staff
             branch = Branch.objects.filter(account=user.account).first()
             if branch:
                 branch_name = branch.branch_name
@@ -118,12 +126,10 @@ def login_view(request):
         # SESSION
         request.session["user_id"] = user.id
         request.session["role"] = user.role
-        request.session["account_id"] = user.account.id if user.account else None
+        request.session["account_id"] = user.account.id
         request.session["user_name"] = user.firstname
         request.session["branch_name"] = branch_name
         request.session["branch_id"] = branch_id
-
-        # 30-minute Auto Expire
         request.session.set_expiry(1800)
 
         messages.success(request, "Logged in successfully!")
@@ -132,6 +138,7 @@ def login_view(request):
     # Unexpected
     messages.error(request, "Invalid request.")
     return render(request, "auth-login.html")
+
 
 
 # -----------------------
@@ -793,5 +800,93 @@ def create_staff_with_manager(request):
         "branch": branch,
         "staff_list": staff_list
     })
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import Account, Branch
+
+
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from .models import Account, Branch
+
+
+def settings_view(request):
+    # ---------- LOGIN CHECK ----------
+    if not request.session.get("user_id") and not request.session.get("admin_id"):
+        return redirect("login_view")
+
+    role = request.session.get("role")
+
+    # ---------- BLOCK STAFF ----------
+    if role == "staff":
+        return redirect("index")
+
+    account_id = request.session.get("account_id")
+
+    # ================= HANDLE POST =================
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        # ===== ADMIN: UPDATE ACCOUNT =====
+        if action == "update_account":
+            if role != "admin":
+                messages.error(request, "Access denied.")
+                return redirect("index")
+
+            account = Account.objects.get(id=request.POST.get("account_id"))
+            account.name = request.POST.get("name")
+            account.phone = request.POST.get("phone")
+            account.address = request.POST.get("address")
+            account.save()
+
+            messages.success(request, "Account updated successfully.")
+            return redirect("settings_view")
+
+        # ===== ADMIN: ENABLE / DISABLE ACCOUNT =====
+        if action == "toggle_account":
+            if role != "admin":
+                messages.error(request, "Access denied.")
+                return redirect("index")
+
+            account = Account.objects.get(id=request.POST.get("account_id"))
+            account.is_active = not account.is_active
+            account.save()
+
+            status = "enabled" if account.is_active else "disabled"
+            messages.success(request, f"Account {status} successfully.")
+            return redirect("settings_view")
+
+        # ===== MANAGER: UPDATE BRANCH =====
+        if action == "update_branch":
+            if role != "manager":
+                messages.error(request, "Access denied.")
+                return redirect("index")
+
+            branch = Branch.objects.get(id=request.POST.get("branch_id"))
+
+            if branch.account.id != account_id:
+                messages.error(request, "Unauthorized branch.")
+                return redirect("index")
+
+            branch.branch_name = request.POST.get("branch_name")
+            branch.save()
+
+            messages.success(request, "Branch updated successfully.")
+            return redirect("settings_view")
+
+    # ================= GET DATA =================
+    context = {}
+
+    if role == "admin":
+        context["accounts"] = Account.objects.all().order_by("-id")
+
+    elif role == "manager":
+        account = Account.objects.get(id=account_id)
+        context["account"] = account
+        context["branches"] = Branch.objects.filter(account=account)
+
+    return render(request, "settings.html", context)
+
 
 

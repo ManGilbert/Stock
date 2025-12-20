@@ -1,0 +1,363 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="card">
+
+    <!-- ================= ADMIN VIEW ================= -->
+    {% if request.session.role == "admin" %}
+    <div class="card-body">
+        <div class="page-heading">
+            <h6>Settings</h6>
+        </div>
+        <div ><strong>Accounts</strong></div>
+
+        <!-- SEARCH + INFO -->
+        <div class="d-flex justify-content-between align-items-center p-2">
+            <input type="text" id="accountSearch" class="form-control form-control-sm w-25"
+                placeholder="Search accounts...">
+            <small class="text-muted" id="paginationInfo"></small>
+        </div>
+        <div class="table-responsive">
+            <!-- TABLE -->
+            <div class="list-group small" id="accountsList" style="min-width: 720px;">
+
+                <!-- HEADER -->
+                <div class="list-group-item py-1 fw-bold bg-body-tertiary">
+                    <div class="d-flex">
+                        <span style="width:70%">Account Name</span>
+                        <span class="text-center" style="width:30%">Action</span>
+                    </div>
+                </div>
+
+                {% for acc in accounts %}
+                <div class="list-group-item py-1 account-row">
+                    <div class="d-flex font-monospace align-items-center">
+
+                        <!-- ACCOUNT NAME -->
+                        <span class="text-truncate" style="width:70%">
+                            {{ acc.name }}
+                            {% if acc.is_active %}
+                            <span style="color: rgb(75, 75, 235);">: Account is Active</span>
+                            {% else %}
+                            <span style="color: rgb(238, 10, 10);">: Account end subscription</span>
+                            {% endif %}
+                        </span>
+
+                        <!-- ACTIONS -->
+                        <span class="text-center" style="width:30%">
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light py-0 px-2" data-bs-toggle="dropdown">⋮</button>
+
+                                <ul class="dropdown-menu dropdown-menu-end small">
+                                    <li>
+                                        <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                            data-bs-target="#editAccountModal"
+                                            onclick="editAccount('{{ acc.id }}','{{ acc.name }}','{{ acc.phone }}','{{ acc.address }}')">
+                                            Edit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <form method="POST" class="px-3">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="toggle_account">
+                                            <input type="hidden" name="account_id" value="{{ acc.id }}">
+                                            <button class="btn btn-sm w-100
+                                            {% if acc.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                                                {% if acc.is_active %}Disable{% else %}Enable{% endif %}
+                                            </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </span>
+
+                    </div>
+                </div>
+                {% empty %}
+                <div class="list-group-item text-muted text-center small">
+                    No accounts found.
+                </div>
+                {% endfor %}
+
+                <div class="list-group-item text-muted text-center small d-none" id="noResults">
+                    No matching accounts found.
+                </div>
+            </div>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="d-flex justify-content-center mt-2">
+            <nav>
+                <ul class="pagination pagination-sm mb-0" id="paginationControls"></ul>
+            </nav>
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- ================= MANAGER VIEW ================= -->
+    {% if request.session.role == "manager" %}
+    <div class="card-body">
+        <div class="page-heading">
+            <h6>Settings</h6>
+        </div>
+        <div class="card mb-3">
+            <div class="card-header"><strong>Account</strong></div>
+            <div class="card-body">
+                <p><strong>Name:</strong> {{ account.name }}</p>
+                <p><strong>Phone:</strong> {{ account.phone }}</p>
+                <p><strong>Address:</strong> {{ account.address }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><strong>Branches</strong></div>
+            <ul class="list-group list-group-flush">
+                {% for branch in branches %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ branch.branch_name }}
+                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                        data-bs-target="#editBranchModal"
+                        onclick="editBranch('{{ branch.id }}','{{ branch.branch_name }}')">
+                        Edit
+                    </button>
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">No branches found</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ================= ACCOUNT MODAL (ADMIN) ================= -->
+<div class="modal fade" id="editAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_account">
+                <input type="hidden" name="account_id" id="editAccountId">
+
+                <div class="modal-header">
+                    <h5>Edit Account</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <label>Name</label>
+                    <input type="text" name="name" id="editAccountName" class="form-control" required>
+
+                    <label>Phone</label>
+                    <input type="text" name="phone" id="editAccountPhone" class="form-control">
+
+                    <label>Address</label>
+                    <textarea name="address" id="editAccountAddress" class="form-control"></textarea>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ================= BRANCH MODAL (MANAGER) ================= -->
+<div class="modal fade" id="editBranchModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_branch">
+                <input type="hidden" name="branch_id" id="editBranchId">
+
+                <div class="modal-header">
+                    <h5>Edit Branch</h5>
+                    <button class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <label>Branch Name</label>
+                    <input type="text" name="branch_name" id="editBranchName" class="form-control" required>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary">Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+
+    function editAccount(id, name, phone, address) {
+        document.getElementById("editAccountId").value = id;
+        document.getElementById("editAccountName").value = name;
+        document.getElementById("editAccountPhone").value = phone || "";
+        document.getElementById("editAccountAddress").value = address || "";
+    }
+
+    function editBranch(id, name) {
+        document.getElementById("editBranchId").value = id;
+        document.getElementById("editBranchName").value = name;
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const ROWS_PER_PAGE = 5;
+
+        /* ===================== ACCOUNTS ===================== */
+        const accountContainer = document.getElementById("accountsList");
+        if (accountContainer) {
+
+            const accountSearch = document.getElementById("accountSearch");
+            const accountInfo = document.getElementById("paginationInfo");
+            const accountPagination = document.getElementById("paginationControls");
+            const noResults = document.getElementById("noResults");
+
+            // ONLY data rows (skip header)
+            const accountRows = Array.from(
+                accountContainer.querySelectorAll(".account-row")
+            );
+
+            let filteredAccounts = [...accountRows];
+            let currentPage = 1;
+
+            function renderAccounts() {
+                const totalPages = Math.ceil(filteredAccounts.length / ROWS_PER_PAGE) || 1;
+                currentPage = Math.min(currentPage, totalPages);
+
+                accountRows.forEach(r => r.style.display = "none");
+
+                const start = (currentPage - 1) * ROWS_PER_PAGE;
+                const end = start + ROWS_PER_PAGE;
+
+                filteredAccounts.slice(start, end).forEach(r => {
+                    r.style.display = "";
+                });
+
+                // Info text
+                if (filteredAccounts.length === 0) {
+                    accountInfo.textContent = "No results";
+                    noResults.classList.remove("d-none");
+                } else {
+                    noResults.classList.add("d-none");
+                    accountInfo.textContent =
+                        `Showing ${start + 1}–${Math.min(end, filteredAccounts.length)}
+                     of ${filteredAccounts.length}`;
+                }
+
+                renderAccountPagination(totalPages);
+            }
+
+            function renderAccountPagination(totalPages) {
+                accountPagination.innerHTML = "";
+                if (totalPages <= 1) return;
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const li = document.createElement("li");
+                    li.className = "page-item " + (i === currentPage ? "active" : "");
+
+                    const a = document.createElement("a");
+                    a.href = "#";
+                    a.className = "page-link";
+                    a.textContent = i;
+
+                    a.onclick = e => {
+                        e.preventDefault();
+                        currentPage = i;
+                        renderAccounts();
+                    };
+
+                    li.appendChild(a);
+                    accountPagination.appendChild(li);
+                }
+            }
+
+            accountSearch.addEventListener("input", function () {
+                const term = this.value.toLowerCase().trim();
+
+                filteredAccounts = accountRows.filter(row =>
+                    row.textContent.toLowerCase().includes(term)
+                );
+
+                currentPage = 1;
+                renderAccounts();
+            });
+
+            renderAccounts();
+        }
+
+        /* ===================== BRANCHES ===================== */
+        const branchContainer = document.getElementById("branchesList");
+        if (branchContainer) {
+
+            const branchPagination = document.getElementById("branchPaginationControls");
+            const noBranchResults = document.getElementById("noBranchResults");
+
+            const branchRows = Array.from(
+                branchContainer.querySelectorAll(".branch-row")
+            );
+
+            let filteredBranches = [...branchRows];
+            let currentBranchPage = 1;
+
+            function renderBranches() {
+                const totalPages = Math.ceil(filteredBranches.length / ROWS_PER_PAGE) || 1;
+                currentBranchPage = Math.min(currentBranchPage, totalPages);
+
+                branchRows.forEach(r => r.style.display = "none");
+
+                const start = (currentBranchPage - 1) * ROWS_PER_PAGE;
+                const end = start + ROWS_PER_PAGE;
+
+                filteredBranches.slice(start, end).forEach(r => {
+                    r.style.display = "";
+                });
+
+                // No results
+                if (filteredBranches.length === 0) {
+                    noBranchResults.classList.remove("d-none");
+                } else {
+                    noBranchResults.classList.add("d-none");
+                }
+
+                renderBranchPagination(totalPages);
+            }
+
+            function renderBranchPagination(totalPages) {
+                branchPagination.innerHTML = "";
+                if (totalPages <= 1) return;
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const li = document.createElement("li");
+                    li.className = "page-item " + (i === currentBranchPage ? "active" : "");
+
+                    const a = document.createElement("a");
+                    a.href = "#";
+                    a.className = "page-link";
+                    a.textContent = i;
+
+                    a.onclick = e => {
+                        e.preventDefault();
+                        currentBranchPage = i;
+                        renderBranches();
+                    };
+
+                    li.appendChild(a);
+                    branchPagination.appendChild(li);
+                }
+            }
+
+            renderBranches();
+        }
+
+    });
+</script>
+
+{% endblock %}
