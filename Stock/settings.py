@@ -138,14 +138,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'imanishimwe.glbrt@gmail.com'
 
 
-#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
-#EMAIL_HOST = 'smtp-relay.brevo.com'
-#EMAIL_PORT = 587
-#EMAIL_USE_TLS = True
-
-#EMAIL_HOST_USER = 'apikey'  # MUST be exactly this
-#EMAIL_HOST_PASSWORD = '#'
-
-#DEFAULT_FROM_EMAIL = 'Stock System <dministratorstock@gmail.com>'
 
