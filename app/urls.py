@@ -34,4 +34,9 @@ urlpatterns = [
      # --- settings URLs ---
     path("stock/settings/", views.settings_view, name="settings_view"),
 
+    # --- reset password URLs ---
+    path("forgot-password/", views.forgot_password_otp, name="forgot-password-otp"),
+    path("verify-otp/", views.verify_otp, name="verify-otp"),
+    path("resend-otp/", views.resend_otp, name="resend-otp"),
+
 ] 

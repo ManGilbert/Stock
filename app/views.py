@@ -474,7 +474,7 @@ def stock_movement_view(request):
 
     # --- GET request: list last 24 hours movements ---
     now_kigali = timezone.now().astimezone(KIGALI_TZ)
-    last_24_hours = now_kigali - timedelta(hours=1)
+    last_24_hours = now_kigali - timedelta(hours=24)
 
     if role == "admin":
         movements = StockMovement.objects.filter(
@@ -803,83 +803,102 @@ def create_staff_with_manager(request):
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
-from .models import Account, Branch
-
-
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from .models import Account, Branch
+from django.db.models import Count, Q, Sum, F
+from django.utils.timezone import now
+from .models import Account, Branch, Stock, StockMovement
 
 
 def settings_view(request):
-    # ---------- LOGIN CHECK ----------
+    # ---------- AUTH ----------
     if not request.session.get("user_id") and not request.session.get("admin_id"):
         return redirect("login_view")
 
     role = request.session.get("role")
 
-    # ---------- BLOCK STAFF ----------
     if role == "staff":
+        messages.error(request, "Access denied.")
         return redirect("index")
 
     account_id = request.session.get("account_id")
 
-    # ================= HANDLE POST =================
+    # ---------- POST ----------
     if request.method == "POST":
         action = request.POST.get("action")
 
-        # ===== ADMIN: UPDATE ACCOUNT =====
-        if action == "update_account":
-            if role != "admin":
-                messages.error(request, "Access denied.")
-                return redirect("index")
-
+        if action == "update_account" and role == "admin":
             account = Account.objects.get(id=request.POST.get("account_id"))
             account.name = request.POST.get("name")
             account.phone = request.POST.get("phone")
             account.address = request.POST.get("address")
             account.save()
-
             messages.success(request, "Account updated successfully.")
             return redirect("settings_view")
 
-        # ===== ADMIN: ENABLE / DISABLE ACCOUNT =====
-        if action == "toggle_account":
-            if role != "admin":
-                messages.error(request, "Access denied.")
-                return redirect("index")
-
+        if action == "toggle_account" and role == "admin":
             account = Account.objects.get(id=request.POST.get("account_id"))
             account.is_active = not account.is_active
             account.save()
-
-            status = "enabled" if account.is_active else "disabled"
-            messages.success(request, f"Account {status} successfully.")
+            messages.success(
+                request,
+                f"Account {'enabled' if account.is_active else 'disabled'} successfully."
+            )
             return redirect("settings_view")
 
-        # ===== MANAGER: UPDATE BRANCH =====
-        if action == "update_branch":
-            if role != "manager":
-                messages.error(request, "Access denied.")
-                return redirect("index")
-
+        if action == "update_branch" and role == "manager":
             branch = Branch.objects.get(id=request.POST.get("branch_id"))
-
-            if branch.account.id != account_id:
+            if branch.account_id != account_id:
                 messages.error(request, "Unauthorized branch.")
                 return redirect("index")
 
             branch.branch_name = request.POST.get("branch_name")
             branch.save()
-
             messages.success(request, "Branch updated successfully.")
             return redirect("settings_view")
 
-    # ================= GET DATA =================
+    # ---------- GET ----------
     context = {}
 
     if role == "admin":
-        context["accounts"] = Account.objects.all().order_by("-id")
+        current_month = now().month
+        current_year = now().year
+
+        context["accounts"] = (
+            Account.objects
+            .annotate(
+                total_users=Count("users", distinct=True),
+                managers_count=Count(
+                    "users",
+                    filter=Q(users__role="manager"),
+                    distinct=True
+                ),
+                staff_count=Count(
+                    "users",
+                    filter=Q(users__role="staff"),
+                    distinct=True
+                ),
+                branches_count=Count("branches", distinct=True),
+                products_count=Count("products", distinct=True),
+
+                # 💰 TOTAL STOCK VALUE
+                stock_value=Sum(
+                    F("products__stocks__quantity") *
+                    F("products__cost_price"),
+                    distinct=True
+                ),
+
+                # 📈 MONTHLY SALES
+                monthly_sales=Sum(
+                    "products__movements__selling_amount",
+                    filter=Q(
+                        products__movements__movement_type="OUT",
+                        products__movements__created_at__month=current_month,
+                        products__movements__created_at__year=current_year,
+                    ),
+                    distinct=True
+                ),
+            )
+            .order_by("-id")
+        )
 
     elif role == "manager":
         account = Account.objects.get(id=account_id)
@@ -887,6 +906,128 @@ def settings_view(request):
         context["branches"] = Branch.objects.filter(account=account)
 
     return render(request, "settings.html", context)
+
+
+import re
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+from django.http import JsonResponse
+from .models import UserInfo, AdminInfo, PasswordResetOTP
+
+
+def forgot_password_otp(request):
+    if request.method == "POST":
+        email = request.POST.get("email")
+
+        user = UserInfo.objects.filter(email=email).first()
+        admin = AdminInfo.objects.filter(email=email).first()
+
+        if not user and not admin:
+            messages.error(request, "Email not found")
+            return redirect("forgot-password-otp")
+
+        PasswordResetOTP.objects.filter(email=email).delete()
+
+        otp = PasswordResetOTP.generate_otp()
+        PasswordResetOTP.objects.create(email=email, otp=otp)
+
+        send_mail(
+            "Your Password Reset OTP",
+            f"Your OTP is {otp}. It expires in 10 minutes.",
+            settings.DEFAULT_FROM_EMAIL,
+            [email],
+        )
+
+        request.session["reset_email"] = email
+        messages.success(request, "OTP sent to your email")
+        return redirect("verify-otp")
+
+    return render(request, "auth-forgot-password.html")
+
+
+def is_strong_password(password):
+    return (
+        len(password) >= 8 and
+        re.search(r"[A-Z]", password) and
+        re.search(r"[a-z]", password) and
+        re.search(r"\d", password) and
+        re.search(r"[!@#$%^&*]", password)
+    )
+
+
+def verify_otp(request):
+    email = request.session.get("reset_email")
+    if not email:
+        return redirect("forgot-password-otp")
+
+    if request.method == "POST":
+        otp_input = request.POST.get("otp")
+        password = request.POST.get("password")
+        confirm = request.POST.get("confirm")
+
+        record = PasswordResetOTP.objects.filter(
+            email=email, otp=otp_input
+        ).first()
+
+        if not record:
+            messages.error(request, "Invalid OTP")
+            return redirect("verify-otp")
+
+        if record.is_expired():
+            record.delete()
+            messages.error(request, "OTP expired")
+            return redirect("forgot-password-otp")
+
+        if password != confirm:
+            messages.error(request, "Passwords do not match")
+            return redirect("verify-otp")
+
+        if not is_strong_password(password):
+            messages.error(
+                request,
+                "Password must be 8+ chars with uppercase, lowercase, number & symbol"
+            )
+            return redirect("verify-otp")
+
+        user = UserInfo.objects.filter(email=email).first()
+        admin = AdminInfo.objects.filter(email=email).first()
+
+        if user:
+            user.set_password(password)
+            user.save()
+        elif admin:
+            admin.set_password(password)
+            admin.save()
+
+        record.delete()
+        del request.session["reset_email"]
+
+        messages.success(request, "Password reset successfully")
+        return redirect("login_view")
+
+    return render(request, "auth-reset_password.html")
+
+
+def resend_otp(request):
+    email = request.session.get("reset_email")
+    if not email:
+        return JsonResponse({"error": "Session expired"}, status=400)
+
+    PasswordResetOTP.objects.filter(email=email).delete()
+
+    otp = PasswordResetOTP.generate_otp()
+    PasswordResetOTP.objects.create(email=email, otp=otp)
+
+    send_mail(
+        "Your Password Reset OTP",
+        f"Your OTP is {otp}. It expires in 10 minutes.",
+        settings.DEFAULT_FROM_EMAIL,
+        [email],
+    )
+
+    return JsonResponse({"success": "OTP resent"})
 
 
 

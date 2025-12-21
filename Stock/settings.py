@@ -132,3 +132,20 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'imanishimwe.glbrt@gmail.com'
+
+
+#EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+
+#EMAIL_HOST = 'smtp-relay.brevo.com'
+#EMAIL_PORT = 587
+#EMAIL_USE_TLS = True
+
+#EMAIL_HOST_USER = 'apikey'  # MUST be exactly this
+#EMAIL_HOST_PASSWORD = 'xsmtpsib-4414688354ee466e4cc47c0799ff7da5139706929d9e757cc4e6ad5eb43848cc-LVs1yyFMZI5v8xsL'
+
+#DEFAULT_FROM_EMAIL = 'Stock System <dministratorstock@gmail.com>'
+

@@ -10,7 +10,7 @@
         <div class="page-heading">
             <h6>Settings</h6>
         </div>
-        <div ><strong>Accounts</strong></div>
+        <div><strong>Accounts</strong></div>
 
         <!-- SEARCH + INFO -->
         <div class="d-flex justify-content-between align-items-center p-2">
@@ -40,7 +40,7 @@
                             {% if acc.is_active %}
                             <span style="color: rgb(75, 75, 235);">: Account is Active</span>
                             {% else %}
-                            <span style="color: rgb(238, 10, 10);">: Account end subscription</span>
+                            <span style="color: rgb(238, 10, 10);">: Account out of subscription</span>
                             {% endif %}
                         </span>
 
@@ -51,7 +51,21 @@
 
                                 <ul class="dropdown-menu dropdown-menu-end small">
                                     <li>
-                                        <a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                        <!--Account info content Modal trigger -->
+                                        <a class="btn btn-sm w-100 btn-outline-primary" data-bs-toggle="modal"
+                                            data-bs-target="#accountInfoModal" data-name="{{ acc.name|escapejs }}"
+                                            data-phone="{{ acc.phone|default:'-'|escapejs }}"
+                                            data-address="{{ acc.address|default:'-'|escapejs }}"
+                                            data-users="{{ acc.total_users }}" data-managers="{{ acc.managers_count }}"
+                                            data-staff="{{ acc.staff_count }}" data-branches="{{ acc.branches_count }}"
+                                            data-products="{{ acc.products_count }}"
+                                            data-stock="{{ acc.stock_value|default:0 }}"
+                                            data-sales="{{ acc.monthly_sales|default:0 }}">
+                                            View account info
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="btn btn-sm w-100 btn-outline-primary " href="#" data-bs-toggle="modal"
                                             data-bs-target="#editAccountModal"
                                             onclick="editAccount('{{ acc.id }}','{{ acc.name }}','{{ acc.phone }}','{{ acc.address }}')">
                                             Edit
@@ -62,8 +76,9 @@
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="toggle_account">
                                             <input type="hidden" name="account_id" value="{{ acc.id }}">
-                                            <button class="btn btn-sm w-100
-                                            {% if acc.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                                            <button
+                                                class="btn btn-sm w-100
+                                            {% if acc.is_active %}btn btn-outline-danger{% else %}btn btn-outline-success{% endif %}">
                                                 {% if acc.is_active %}Disable{% else %}Enable{% endif %}
                                             </button>
                                         </form>
@@ -123,6 +138,7 @@
                         Edit
                     </button>
                 </li>
+
                 {% empty %}
                 <li class="list-group-item text-muted">No branches found</li>
                 {% endfor %}
@@ -151,10 +167,10 @@
                     <input type="text" name="name" id="editAccountName" class="form-control" required>
 
                     <label>Phone</label>
-                    <input type="text" name="phone" id="editAccountPhone" class="form-control">
+                    <input type="text" name="phone" id="editAccountPhone" class="form-control" required>
 
                     <label>Address</label>
-                    <textarea name="address" id="editAccountAddress" class="form-control"></textarea>
+                    <textarea name="address" id="editAccountAddress" class="form-control" required></textarea>
                 </div>
 
                 <div class="modal-footer">
@@ -193,6 +209,84 @@
         </div>
     </div>
 </div>
+
+<!-- ================= ACCOUNT INFO MODAL ================= -->
+<div class="modal fade" id="accountInfoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+
+            <div class="modal-header py-2">
+                <h6 class="modal-title mb-0">Account Information</h6>
+                <button type="button" class="btn-close btn-sm" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body p-0">
+                <ul class="list-group list-group-flush small">
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Account</span>
+                        <span id="infoName"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Phone</span>
+                        <span id="infoPhone"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Address</span>
+                        <span id="infoAddress" class="text-end"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Total Users</span>
+                        <span id="infoUsers"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Managers</span>
+                        <span id="infoManagers"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Staff</span>
+                        <span id="infoStaff"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Branches</span>
+                        <span id="infoBranches"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between">
+                        <span>Products</span>
+                        <span id="infoProducts"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between fw-semibold">
+                        <span>Total Stock Value</span>
+                        <span id="infoStock"></span>
+                    </li>
+
+                    <li class="list-group-item py-1 d-flex justify-content-between fw-semibold">
+                        <span>Monthly Sales</span>
+                        <span id="infoSales"></span>
+                    </li>
+
+                </ul>
+            </div>
+
+            <div class="modal-footer py-1">
+                <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
 <script>
 
     function editAccount(id, name, phone, address) {
@@ -206,6 +300,31 @@
         document.getElementById("editBranchId").value = id;
         document.getElementById("editBranchName").value = name;
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const modal = document.getElementById("accountInfoModal");
+
+        modal.addEventListener("show.bs.modal", function (event) {
+            const button = event.relatedTarget;
+
+            document.getElementById("infoName").textContent = button.dataset.name || "-";
+            document.getElementById("infoPhone").textContent = button.dataset.phone || "-";
+            document.getElementById("infoAddress").textContent = button.dataset.address || "-";
+            document.getElementById("infoUsers").textContent = button.dataset.users || 0;
+            document.getElementById("infoManagers").textContent = button.dataset.managers || 0;
+            document.getElementById("infoStaff").textContent = button.dataset.staff || 0;
+            document.getElementById("infoBranches").textContent = button.dataset.branches || 0;
+            document.getElementById("infoProducts").textContent = button.dataset.products || 0;
+
+            document.getElementById("infoStock").textContent =
+                Number(button.dataset.stock || 0).toLocaleString() + " RWF";
+
+            document.getElementById("infoSales").textContent =
+                Number(button.dataset.sales || 0).toLocaleString() + " RWF";
+        });
+
+    });
 
     document.addEventListener("DOMContentLoaded", function () {
 
