@@ -145,7 +145,7 @@ DEFAULT_FROM_EMAIL = 'imanishimwe.glbrt@gmail.com'
 #EMAIL_USE_TLS = True
 
 #EMAIL_HOST_USER = 'apikey'  # MUST be exactly this
-#EMAIL_HOST_PASSWORD = 'xsmtpsib-4414688354ee466e4cc47c0799ff7da5139706929d9e757cc4e6ad5eb43848cc-LVs1yyFMZI5v8xsL'
+#EMAIL_HOST_PASSWORD = '#'
 
 #DEFAULT_FROM_EMAIL = 'Stock System <dministratorstock@gmail.com>'
 
