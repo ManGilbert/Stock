@@ -20,12 +20,73 @@ from .models import StockMovement, UserInfo, Branch
 from django.db import transaction
 
 
-# ---------- Send logged user to index ----------
+from django.shortcuts import render, redirect
+from django.db.models import Sum
+from .models import AdminInfo, UserInfo, Account, Branch, Product, Stock, StockMovement
+
 def index(request):
-    """Send logged user to dashboard"""
-    if request.session.get('admin_id') or request.session.get('user_id'):
-        return render(request, 'index.html')
+    context = {}
+
+    # Admin dashboard
+    if request.session.get('admin_id'):
+        admin = AdminInfo.objects.only('id', 'firstname', 'lastname').get(id=request.session['admin_id'])
+
+        context.update({
+            'role': 'admin',
+            'user': admin,  # So template can do {{ user.firstname }} etc.
+
+            'total_accounts': Account.objects.count(),
+            'total_users': UserInfo.objects.count(),
+            'total_branches': Branch.objects.count(),
+            'total_products': Product.objects.count(),
+
+            'total_stock': Stock.objects.aggregate(total=Sum('quantity'))['total'] or 0,
+            'total_profit': StockMovement.objects.aggregate(total=Sum('profit'))['total'] or 0,
+        })
+
+        return render(request, 'index.html', context)
+
+    # Manager or Staff dashboard
+    if request.session.get('user_id'):
+        user = UserInfo.objects.select_related('account').get(id=request.session['user_id'])
+
+        # Manager dashboard
+        if user.role == 'manager':
+            branches = Branch.objects.filter(account=user.account)
+
+            context.update({
+                'role': 'manager',
+                'user': user,
+
+                'total_branches': branches.count(),
+                'total_staff': UserInfo.objects.filter(account=user.account, role='staff').count(),
+                'total_products': Product.objects.filter(account=user.account).count(),
+
+                'total_stock': Stock.objects.filter(branch__in=branches).aggregate(total=Sum('quantity'))['total'] or 0,
+                'total_profit': StockMovement.objects.filter(branch__in=branches).aggregate(total=Sum('profit'))['total'] or 0,
+            })
+
+        # Staff dashboard
+        else:
+            # Detect staff branch - the first branch for their account with stock
+            staff_branch = Branch.objects.filter(account=user.account).filter(products__stocks__isnull=False).distinct().first()
+
+            context.update({
+                'role': 'staff',
+                'user': user,
+
+                'branch_name': staff_branch.branch_name if staff_branch else "N/A",
+                'total_products': Product.objects.filter(branch=staff_branch).count() if staff_branch else 0,
+                'total_stock': Stock.objects.filter(branch=staff_branch).aggregate(total=Sum('quantity'))['total'] or 0 if staff_branch else 0,
+                'total_profit': StockMovement.objects.filter(branch=staff_branch).aggregate(total=Sum('profit'))['total'] or 0 if staff_branch else 0,
+            })
+
+        return render(request, 'index.html', context)
+
+    # If no user found, redirect to login
     return redirect('login_view')
+
+
 
 class SessionExpiredMiddleware:
     def __init__(self, get_response):
@@ -879,14 +940,14 @@ def settings_view(request):
                 branches_count=Count("branches", distinct=True),
                 products_count=Count("products", distinct=True),
 
-                # 💰 TOTAL STOCK VALUE
+                # TOTAL STOCK VALUE
                 stock_value=Sum(
                     F("products__stocks__quantity") *
                     F("products__cost_price"),
                     distinct=True
                 ),
 
-                # 📈 MONTHLY SALES
+                # MONTHLY SALES
                 monthly_sales=Sum(
                     "products__movements__selling_amount",
                     filter=Q(
