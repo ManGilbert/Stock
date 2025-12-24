@@ -64,6 +64,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {% if role == "admin" or role == "manager" %}
                             <div class="col-6 col-lg-3 col-md-6">
                                 <div class="card">
                                     <div class="card-body px-3 py-4-5">
@@ -81,6 +82,7 @@
                                     </div>
                                 </div>
                             </div>
+                            {% endif %}
                             <div class="col-6 col-lg-3 col-md-6">
                                 <div class="card">
                                     <div class="card-body px-3 py-4-5">
@@ -127,7 +129,9 @@
                                             <span class="me-2" style="width:25%">Product</span>
                                             <span class="me-2" style="width:6%">Qty</span>
                                             <span class="me-2" style="width:12%">Amount</span>
+                                            {% if role == "admin" or role == "manager" %}
                                             <span class="me-2" style="width:12%">Profit</span>
+                                            {% endif %}
                                             <span class="me-2" style="width:15%">Pay</span>
                                             <span style="width:8%">Time</span>
                                         </div>
@@ -145,9 +149,11 @@
                                             <span class="me-2" style="width:12%">
                                                 {{ s.selling_amount }}
                                             </span>
+                                            {% if role == "admin" or role == "manager" %}
                                             <span class="me-2 text-success" style="width:12%">
                                                 {{ s.profit }}
                                             </span>
+                                            {% endif %}
                                             <span class="me-2" style="width:15%">
                                                 {{ s.payment_method }}
                                             </span>

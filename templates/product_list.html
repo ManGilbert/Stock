@@ -28,7 +28,9 @@
                 <tr>
                     <th>Name</th>
                     <th>Branch</th>
+                    {% if role == "admin" or role == "manager" %}
                     <th>Cost Price</th>
+                    {% endif %}
                     <th>Selling Price</th>
                     {% if role == "admin" or role == "manager" %}
                     <th>Actions</th>
@@ -40,7 +42,9 @@
                 <tr>
                     <td>{{ product.name }}</td>
                     <td>{{ product.branch.branch_name }}</td>
+                    {% if role == "admin" or role == "manager" %}
                     <td>{{ product.cost_price }}</td>
+                    {% endif %}
                     <td>{{ product.selling_price }}</td>
                     <td>
                         {% if role == "admin" or role == "manager" %}

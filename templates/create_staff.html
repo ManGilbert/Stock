@@ -3,8 +3,7 @@
 
 {% block content %}
 
-<link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.css">
 
 <div class="card my-4">
     <div class="card-header">
@@ -26,10 +25,10 @@
                     <input name="first_name" class="form-control mb-2 required" placeholder="First Name">
                     <input name="last_name" class="form-control mb-2 required" placeholder="Last Name">
                     <input name="email" type="email" class="form-control mb-2 required" placeholder="Email">
-                    <input id="password" name="password" type="password"
-                           class="form-control mb-2 required" placeholder="Password">
-                    <input name="confirm_password" type="password"
-                           class="form-control required" placeholder="Confirm Password">
+                    <input id="password" name="password" type="password" class="form-control mb-2 required"
+                        placeholder="Password">
+                    <input name="confirm_password" type="password" class="form-control required"
+                        placeholder="Confirm Password">
                 </section>
 
                 <h6>Confirm</h6>
@@ -56,22 +55,48 @@
                     <th>#</th>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Status</th>
+                    <th>Action</th>
                 </tr>
             </thead>
             <tbody>
-            {% for s in staff_list %}
+                {% for s in staff_list %}
                 <tr>
                     <td>{{ forloop.counter }}</td>
                     <td>{{ s.firstname }} {{ s.lastname }}</td>
                     <td>{{ s.email }}</td>
+                    <td>
+                        {% if s.is_active %}
+                        <span style="color: rgb(49, 49, 228);">Active</span>
+                        {% else %}
+                        <span style="color: rgb(224, 19, 19);">Block</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="post" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="toggle">
+                            <input type="hidden" name="staff_id" value="{{ s.id }}">
+
+                            {% if s.is_active %}
+                            <button class="btn btn-outline-danger">
+                                Block
+                            </button>
+                            {% else %}
+                            <button class="btn btn-outline-success">
+                                Un Block
+                            </button>
+                            {% endif %}
+                        </form>
+                    </td>
                 </tr>
-            {% empty %}
+                {% empty %}
                 <tr>
-                    <td colspan="3" class="text-center text-muted">
+                    <td colspan="5" class="text-center text-muted">
                         No staff found for this branch
                     </td>
                 </tr>
-            {% endfor %}
+                {% endfor %}
             </tbody>
         </table>
 
@@ -83,33 +108,33 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-steps/1.1.0/jquery.steps.min.js"></script>
 
 <script>
-$(function () {
+    $(function () {
 
-    var form = $("#staff-form");
+        var form = $("#staff-form");
 
-    form.validate({
-        errorClass: "text-danger",
-        rules: {
-            confirm_password: { equalTo: "#password" },
-            agree: { required: true }
-        }
+        form.validate({
+            errorClass: "text-danger",
+            rules: {
+                confirm_password: { equalTo: "#password" },
+                agree: { required: true }
+            }
+        });
+
+        $("#wizard").steps({
+            headerTag: "h6",
+            bodyTag: "section",
+            transitionEffect: "slideLeft",
+            labels: { finish: "Create Staff" },
+            onStepChanging: function () {
+                form.validate().settings.ignore = ":hidden";
+                return form.valid();
+            },
+            onFinished: function () {
+                form.submit();
+            }
+        });
+
     });
-
-    $("#wizard").steps({
-        headerTag: "h6",
-        bodyTag: "section",
-        transitionEffect: "slideLeft",
-        labels: { finish: "Create Staff" },
-        onStepChanging: function () {
-            form.validate().settings.ignore = ":hidden";
-            return form.valid();
-        },
-        onFinished: function () {
-            form.submit();
-        }
-    });
-
-});
 </script>
 
 {% endblock %}

@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Null</title>
+    <title>Login - StockSale</title>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'assets/css/bootstrap.css' %}">
     <link rel="stylesheet" href="{% static 'assets/vendors/bootstrap-icons/bootstrap-icons.css' %}">
@@ -21,11 +21,12 @@
         <div class="row h-100">
             <div class="col-lg-5 col-12">
                 <div id="auth-left">
-                    <div class="auth-logo">
-                        <a href="{% url 'index' %}"><img src="{% static 'assets/images/logo/logo.png' %}" alt="Logo"></a>
+                    <a class="auth-title" href="{% url 'index' %}">
+                        <h6 class="auth-title">StockSale</h6>
+                    </a>
+                    <div class="text mt-5 text-lg fs-4">
+                        <p>Log in with your data that you entered during registration.</p>
                     </div>
-                    <h5 class="auth-title">Log in.</h5>
-                    <p class="auth-subtitle mb-1">Log in with your data that you entered during registration.</p>
 
                     <form method="POST">
 
@@ -39,7 +40,7 @@
                                 <option value="user">Account User</option>
                             </select>
                         </div>
-                        
+
                         <div class="form-group position-relative has-icon-left mb-4">
                             <input type="text" name="email" class="form-control form-control-xl" placeholder="Username">
                             <div class="form-control-icon">
@@ -64,9 +65,6 @@
 
                     </form>
                     <div class="text-center mt-5 text-lg fs-4">
-                        <p class="text-gray-600">Don't have an account? <a href="auth-register.html"
-                                class="font-bold">Sign
-                                up</a>.</p>
                         <p><a class="font-bold" href="{% url 'forgot-password-otp' %}">Forgot password?</a>.</p>
                     </div>
                 </div>

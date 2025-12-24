@@ -1,28 +1,43 @@
+# Django shortcuts & utilities
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import AdminInfo, UserInfo, Account, Branch, Product
+from django.http import JsonResponse
+
+# Django auth & security
 from django.contrib.auth.hashers import make_password, check_password
 
-
-from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib import messages
-from .models import StockMovement, Product, Branch, UserInfo
-
-from django.shortcuts import render, redirect
-from django.db.models import Sum, F, Case, When, Value, IntegerField, ExpressionWrapper,DecimalField
-from .models import StockMovement, UserInfo, Branch
-
-from django.shortcuts import render, redirect
-from django.utils import timezone
-from datetime import timedelta
-from django.db.models import Sum
-from .models import StockMovement, UserInfo, Branch
+# Django DB
 from django.db import transaction
+from django.db.models import (
+    Sum, F, Case, When, Value, IntegerField,
+    ExpressionWrapper, DecimalField, Count, Q
+)
+
+# Django time & utils
+from django.utils import timezone
+from django.utils.timezone import now
+from datetime import timedelta
+
+# Email
+from django.core.mail import send_mail
+from django.conf import settings
+
+# Models
+from .models import (
+    AdminInfo,
+    UserInfo,
+    Account,
+    Branch,
+    Product,
+    Stock,
+    StockMovement,
+    PasswordResetOTP,
+)
+
+# Python stdlib
+import re
 
 
-from django.shortcuts import render, redirect
-from django.db.models import Sum
-from .models import AdminInfo, UserInfo, Account, Branch, Product, Stock, StockMovement
 
 def index(request):
     context = {}
@@ -86,8 +101,6 @@ def index(request):
     # If no user found, redirect to login
     return redirect('login_view')
 
-
-
 class SessionExpiredMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -113,6 +126,7 @@ class SessionExpiredMiddleware:
 
 # ---------- login section ----------
 def login_view(request):
+
     # Show session expired message if redirected
     if request.GET.get("session_expired"):
         messages.error(request, "Your session expired. Please login again.")
@@ -166,10 +180,10 @@ def login_view(request):
 
         # ---------- BLOCK DISABLED USER ----------
         if not user.is_active:
-            messages.error(request, "Your user access is disabled.")
+            messages.error(request, "Access denied tolk to you boss")
             return render(request, "auth-login.html")
 
-        # Determine branch info
+        # ---------- DETERMINE BRANCH INFO ----------
         branch_name = None
         branch_id = None
 
@@ -178,13 +192,13 @@ def login_view(request):
             if branch:
                 branch_name = branch.branch_name
                 branch_id = branch.id
-        else:  # staff
-            branch = Branch.objects.filter(account=user.account).first()
-            if branch:
-                branch_name = branch.branch_name
-                branch_id = branch.id
 
-        # SESSION
+        elif user.role == "staff":
+            if user.branch:
+                branch_name = user.branch.branch_name
+                branch_id = user.branch.id
+
+        # ---------- SESSION ----------
         request.session["user_id"] = user.id
         request.session["role"] = user.role
         request.session["account_id"] = user.account.id
@@ -196,10 +210,9 @@ def login_view(request):
         messages.success(request, "Logged in successfully!")
         return redirect("index")
 
-    # Unexpected
+    # Fallback
     messages.error(request, "Invalid request.")
     return render(request, "auth-login.html")
-
 
 
 # -----------------------
@@ -224,6 +237,7 @@ def _authenticate_user(email, password):
     if check_password(password, user.password):
         return user
     return None
+
 
 # ---------- user profile section ----------
 def profile_view(request):
@@ -271,6 +285,7 @@ def profile_view(request):
 
     # ---------- NOT LOGGED IN ----------
     return redirect('login_view')
+
 
 # ---------- User change password ----------
 def change_auth_view(request):
@@ -340,32 +355,41 @@ def change_auth_view(request):
         "user_type": user_type
     })
 
-
+# --------- logout section ----------
 def logout_view(request):
     request.session.flush()
     return redirect('login_view')
 
 # ---------- product section ----------
 def products_view(request):
-    # Check login
+    # -------------------- LOGIN CHECK --------------------
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
 
     role = request.session.get('role')
     user = None
 
+    if role != "admin":
+        user = get_object_or_404(UserInfo, id=request.session["user_id"])
+
+    # -------------------- BASE QUERY --------------------
     if role == "admin":
-        products = Product.objects.all().order_by("-id")
-    else:
-        user = UserInfo.objects.get(id=request.session["user_id"])
-        products = Product.objects.filter(account=user.account).order_by("-id")
+        products = Product.objects.all()
 
+    elif role == "manager":
+        products = Product.objects.filter(account=user.account)
 
-    # Handle POST actions
+    else:  # staff → ONLY assigned branch
+        if not user.branch:
+            products = Product.objects.none()
+        else:
+            products = Product.objects.filter(branch=user.branch)
+
+    # -------------------- HANDLE POST --------------------
     if request.method == "POST":
         action = request.POST.get("action")
 
-        # --- Add Product ---
+        # ---------- ADD PRODUCT ----------
         if action == "add":
             name = request.POST.get("name")
             branch_id = request.POST.get("branch")
@@ -375,67 +399,168 @@ def products_view(request):
 
             if not branch_id:
                 messages.error(request, "Please select a branch.")
-            else:
-                try:
-                    branch = Branch.objects.get(id=branch_id, account=user.account)
-                    Product.objects.create(
-                        account=branch.account,
-                        branch=branch,
-                        name=name,
-                        category=category,
-                        cost_price=cost_price,
-                        selling_price=selling_price
-                    )
-                    messages.success(request, f"Product '{name}' added successfully.")
-                except Branch.DoesNotExist:
-                    messages.error(request, "Invalid branch selected.")
+                return redirect("products")
 
-        # --- Update Product ---
+            # STAFF BRANCH LOCK
+            if role == "staff":
+                if not user.branch or int(branch_id) != user.branch.id:
+                    messages.error(
+                        request,
+                        "You can only add products to your assigned branch."
+                    )
+                    return redirect("products")
+
+            try:
+                # Branch scope
+                if role == "admin":
+                    branch = Branch.objects.get(id=branch_id)
+                else:
+                    branch = Branch.objects.get(
+                        id=branch_id,
+                        account=user.account
+                    )
+
+                # Duplicate check per branch
+                if Product.objects.filter(
+                    branch=branch,
+                    name__iexact=name
+                ).exists():
+                    messages.error(
+                        request,
+                        f"Product '{name}' already exists in this branch."
+                    )
+                    return redirect("products")
+
+                Product.objects.create(
+                    account=branch.account,
+                    branch=branch,
+                    name=name,
+                    category=category,
+                    cost_price=cost_price,
+                    selling_price=selling_price
+                )
+
+                messages.success(
+                    request,
+                    f"Product '{name}' added successfully."
+                )
+
+            except Branch.DoesNotExist:
+                messages.error(request, "Invalid branch selected.")
+
+        # ---------- UPDATE PRODUCT ----------
         elif action == "update":
             product_id = request.POST.get("product_id")
+
             if not product_id or not product_id.isdigit():
                 messages.error(request, "Invalid product ID.")
                 return redirect("products")
 
-            product = get_object_or_404(Product, id=int(product_id), account=user.account)
+            # Product scope
+            if role == "admin":
+                product = get_object_or_404(Product, id=int(product_id))
+            elif role == "manager":
+                product = get_object_or_404(
+                    Product,
+                    id=int(product_id),
+                    account=user.account
+                )
+            else:  # staff
+                product = get_object_or_404(
+                    Product,
+                    id=int(product_id),
+                    branch=user.branch
+                )
 
             branch_id = request.POST.get("branch")
+
+            # STAFF BRANCH LOCK
+            if role == "staff" and int(branch_id) != user.branch.id:
+                messages.error(
+                    request,
+                    "You cannot move a product to another branch."
+                )
+                return redirect("products")
+
             try:
-                branch = Branch.objects.get(id=branch_id, account=user.account)
+                if role == "admin":
+                    branch = Branch.objects.get(id=branch_id)
+                else:
+                    branch = Branch.objects.get(
+                        id=branch_id,
+                        account=user.account
+                    )
+
+                # Duplicate name in target branch
+                if Product.objects.filter(
+                    branch=branch,
+                    name__iexact=request.POST.get("name")
+                ).exclude(id=product.id).exists():
+                    messages.error(
+                        request,
+                        "This product already exists in the selected branch."
+                    )
+                    return redirect("products")
+
                 product.branch = branch
                 product.name = request.POST.get("name")
                 product.category = request.POST.get("category")
                 product.cost_price = request.POST.get("cost_price")
                 product.selling_price = request.POST.get("selling_price")
                 product.save()
-                messages.success(request, f"Product '{product.name}' updated successfully.")
+
+                messages.success(
+                    request,
+                    f"Product '{product.name}' updated successfully."
+                )
+
             except Branch.DoesNotExist:
                 messages.error(request, "Invalid branch selected.")
 
-        # --- Delete Product ---
+        # ---------- DELETE PRODUCT ----------
         elif action == "delete":
             product_id = request.POST.get("product_id")
+
             if not product_id or not product_id.isdigit():
                 messages.error(request, "Invalid product ID.")
                 return redirect("products")
 
-            product = get_object_or_404(Product, id=int(product_id), account=user.account)
+            # Product scope
+            if role == "admin":
+                product = get_object_or_404(Product, id=int(product_id))
+            elif role == "manager":
+                product = get_object_or_404(
+                    Product,
+                    id=int(product_id),
+                    account=user.account
+                )
+            else:  # staff
+                product = get_object_or_404(
+                    Product,
+                    id=int(product_id),
+                    branch=user.branch
+                )
+
             product_name = product.name
             product.delete()
-            messages.success(request, f"Product '{product_name}' deleted successfully.")
+
+            messages.success(
+                request,
+                f"Product '{product_name}' deleted successfully."
+            )
 
         else:
             messages.error(request, "Invalid action.")
 
         return redirect("products")
 
-    # GET request: display products
-    products = products.select_related('branch')
+    # -------------------- FINAL QUERY --------------------
+    products = products.select_related('branch').order_by("-id")
 
     return render(request, 'product_list.html', {
         'products': products,
         'role': role,
-        'user': user  # make sure we pass user for the branch dropdown
+        'user': user
     })
 
 
@@ -447,22 +572,24 @@ except ImportError:
     import pytz
     KIGALI_TZ = pytz.timezone("Africa/Kigali")
 
-
+    # -------------------- stock movement view Section--------------------
 def stock_movement_view(request):
-    # --- LOGIN CHECK ---
+    # -------------------- LOGIN CHECK --------------------
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
 
     role = request.session.get('role')
     user = None
-    if role != "admin":
-        user = UserInfo.objects.get(id=request.session["user_id"])
 
-    # --- Handle POST actions ---
+    if role != "admin":
+        user = get_object_or_404(UserInfo, id=request.session["user_id"])
+
+    # -------------------- HANDLE POST --------------------
     if request.method == "POST":
         action = request.POST.get("action")
-        movement_id = request.POST.get("movement_id")  # For update/delete
+        movement_id = request.POST.get("movement_id")
 
+        # ---------- ADD / UPDATE ----------
         if action in ["add", "update"]:
             product_id = request.POST.get("product")
             branch_id = request.POST.get("branch")
@@ -472,16 +599,26 @@ def stock_movement_view(request):
             notes = request.POST.get("notes") or ""
             payment_method = request.POST.get("payment_method") or None
 
-            # Validation for add/update only
             if not product_id or not branch_id or not movement_type or not quantity:
-                messages.error(request, "All fields are required.")
+                messages.error(request, "All required fields must be filled.")
                 return redirect("stock_movement_view")
 
+            # ---------- STAFF BRANCH RESTRICTION ----------
+            if role == "staff":
+                if not user.branch:
+                    messages.error(request, "You are not assigned to any branch.")
+                    return redirect("stock_movement_view")
+
+                if int(branch_id) != user.branch.id:
+                    messages.error(request, "You can only act on your assigned branch.")
+                    return redirect("stock_movement_view")
+
             try:
-                product = Product.objects.get(id=product_id)
-                branch = Branch.objects.get(id=branch_id)
+                product = get_object_or_404(Product, id=product_id)
+                branch = get_object_or_404(Branch, id=branch_id)
                 quantity = int(quantity)
 
+                # ---------- ADD ----------
                 if action == "add":
                     StockMovement.objects.create(
                         product=product,
@@ -493,17 +630,17 @@ def stock_movement_view(request):
                         payment_method=payment_method,
                         created_by=user
                     )
-                    messages.success(
-                        request,
-                        f"{movement_type} movement of {quantity} units for {product.name} recorded successfully."
-                    )
+                    messages.success(request, "Stock movement recorded successfully.")
 
+                # ---------- UPDATE ----------
                 elif action == "update":
-                    if not movement_id:
-                        messages.error(request, "Invalid movement ID.")
+                    movement = get_object_or_404(StockMovement, id=int(movement_id))
+
+                    # Staff can update ONLY their own records
+                    if role == "staff" and movement.created_by != user:
+                        messages.error(request, "You cannot edit this record.")
                         return redirect("stock_movement_view")
 
-                    movement = get_object_or_404(StockMovement, id=int(movement_id))
                     movement.product = product
                     movement.branch = branch
                     movement.movement_type = movement_type
@@ -512,28 +649,31 @@ def stock_movement_view(request):
                     movement.notes = notes
                     movement.payment_method = payment_method
                     movement.save()
-                    messages.success(request, f"Stock movement updated successfully.")
 
-            except (Product.DoesNotExist, Branch.DoesNotExist):
-                messages.error(request, "Invalid product or branch selected.")
+                    messages.success(request, "Stock movement updated successfully.")
+
             except Exception as e:
                 messages.error(request, str(e))
 
+            return redirect("stock_movement_view")
+
+        # ---------- DELETE ----------
         elif action == "delete":
-            if not movement_id:
-                messages.error(request, "Invalid movement ID.")
+            movement = get_object_or_404(StockMovement, id=int(movement_id))
+
+            # Staff can delete ONLY their own records
+            if role == "staff" and movement.created_by != user:
+                messages.error(request, "You cannot delete this record.")
                 return redirect("stock_movement_view")
 
-            movement = get_object_or_404(StockMovement, id=int(movement_id))
             movement.delete()
             messages.success(request, "Stock movement deleted successfully.")
+            return redirect("stock_movement_view")
 
-        else:
-            messages.error(request, "Invalid action.")
-
+        messages.error(request, "Invalid action.")
         return redirect("stock_movement_view")
 
-    # --- GET request: list last 24 hours movements ---
+    # -------------------- GET : VIEW MOVEMENTS --------------------
     now_kigali = timezone.now().astimezone(KIGALI_TZ)
     last_24_hours = now_kigali - timedelta(hours=24)
 
@@ -541,55 +681,102 @@ def stock_movement_view(request):
         movements = StockMovement.objects.filter(
             created_at__gte=last_24_hours
         )
-    else:
+
+    elif role == "manager":
         movements = StockMovement.objects.filter(
             branch__account=user.account,
             created_at__gte=last_24_hours
         )
 
-    movements = movements.select_related("product", "branch", "created_by").order_by("-id")
+    else:  # staff → VIEW ALL activity in their branch
+        movements = StockMovement.objects.filter(
+            branch=user.branch,
+            created_at__gte=last_24_hours
+        )
 
-    # --- Dropdown data ---
-    products = Product.objects.filter(account=user.account) if user else Product.objects.all()
-    branches = Branch.objects.filter(account=user.account) if user else Branch.objects.all()
+    movements = movements.select_related(
+        "product", "branch", "created_by"
+    ).order_by("-id")
 
+    # -------------------- DROPDOWNS --------------------
+    if role == "admin":
+        branches = Branch.objects.all()
+        products = Product.objects.all()
+
+    elif role == "manager":
+        branches = Branch.objects.filter(account=user.account)
+        products = Product.objects.filter(account=user.account)
+
+    else:  # staff
+        branches = Branch.objects.filter(id=user.branch.id)
+        products = Product.objects.filter(branch=user.branch)
+
+    # -------------------- RENDER --------------------
     return render(request, "stock_movement_list.html", {
         "movements": movements,
-        "products": products,
         "branches": branches,
+        "products": products,
         "role": role,
-        "user": user
+        "user": user,
     })
 
-# --- stock movement all records view ---
+# ---------- stock movement all records view section ----------
 def stock_movement_all_records_view(request):
-    # --- Check login ---
+    # -------------------- LOGIN CHECK --------------------
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
 
     role = request.session.get('role')
     user = None
+
     if role != "admin":
-        user = UserInfo.objects.get(id=request.session["user_id"])
+        user = get_object_or_404(UserInfo, id=request.session["user_id"])
 
-    # --- GET request: list movements ---
+    # -------------------- GET : VIEW ALL RECORDS --------------------
     if role == "admin":
-        movements = StockMovement.objects.select_related('product', 'branch', 'created_by').order_by("-id")
-    else:
-        movements = StockMovement.objects.filter(branch__account=user.account)\
-                                         .select_related('product', 'branch', 'created_by')\
-                                         .order_by("-id")
+        movements = StockMovement.objects.select_related(
+            "product", "branch", "created_by"
+        ).order_by("-id")
 
-    products = Product.objects.filter(account=user.account) if user else Product.objects.all()
-    branches = Branch.objects.filter(account=user.account) if user else Branch.objects.all()
+    elif role == "manager":
+        movements = StockMovement.objects.filter(
+            branch__account=user.account
+        ).select_related(
+            "product", "branch", "created_by"
+        ).order_by("-id")
 
+    else:  # staff → ALL activity in assigned branch
+        if not user.branch:
+            movements = StockMovement.objects.none()
+        else:
+            movements = StockMovement.objects.filter(
+                branch=user.branch
+            ).select_related(
+                "product", "branch", "created_by"
+            ).order_by("-id")
+
+    # -------------------- DROPDOWNS --------------------
+    if role == "admin":
+        products = Product.objects.all()
+        branches = Branch.objects.all()
+
+    elif role == "manager":
+        products = Product.objects.filter(account=user.account)
+        branches = Branch.objects.filter(account=user.account)
+
+    else:  # staff
+        products = Product.objects.filter(branch=user.branch)
+        branches = Branch.objects.filter(id=user.branch.id)
+
+    # -------------------- RENDER --------------------
     return render(request, "stock_movement_list_all_records.html", {
         "movements": movements,
         "products": products,
         "branches": branches,
         "role": role,
-        "user": user
+        "user": user,
     })
+
 
 # --- list current stocks ---
 def stock_view(request):
@@ -653,29 +840,40 @@ def stock_view(request):
         'role': role,
     })
 
-# ---------- daily report ----------
+# --- Report view ---
 def report_view(request):
     # ---------- LOGIN CHECK ----------
     if not request.session.get('user_id') and not request.session.get('admin_id'):
         return redirect('login_view')
 
     role = request.session.get('role')
-    account_id = request.session.get('account_id')
+    user = None
+
+    if role != "admin":
+        user = get_object_or_404(UserInfo, id=request.session["user_id"])
 
     # ---------- DATE ----------
     selected_date = request.GET.get('date')
-    if selected_date:
-        report_date = selected_date
-    else:
-        report_date = timezone.now().date()
+    report_date = selected_date if selected_date else timezone.now().date()
 
-    # ---------- BRANCHES ----------
+    # ---------- BRANCH FILTERING ----------
     if role == "admin":
         branches = Branch.objects.select_related('manager', 'account')
-    else:
-        branches = Branch.objects.filter(account_id=account_id)\
-                                 .select_related('manager')
 
+    elif role == "manager":
+        branches = Branch.objects.filter(
+            account=user.account
+        ).select_related('manager')
+
+    else:  # staff → ONLY assigned branch
+        if not user.branch:
+            branches = Branch.objects.none()
+        else:
+            branches = Branch.objects.filter(
+                id=user.branch.id
+            ).select_related('manager')
+
+    # ---------- BUILD REPORT ----------
     branch_reports = []
 
     for branch in branches:
@@ -702,7 +900,9 @@ def report_view(request):
         'report_date': report_date,
         'branch_reports': branch_reports,
         'role': role,
+        'user': user,
     })
+
 
 # -------------------------
 # CREATE ACCOUNT
@@ -714,11 +914,23 @@ def create_user_account(request):
         return redirect("index")
 
     if request.method == "POST":
+        account_name = request.POST.get("account_name")
+        email = request.POST.get("email")
+
+        # Check if account already exists
+        if Account.objects.filter(name=account_name).exists():
+            messages.error(request, "Account already exists.")
+            return redirect("create_user_account")
+
+        # Check if manager already exists
+        if UserInfo.objects.filter(email=email).exists():
+            messages.error(request, "User with this email already exists.")
+            return redirect("create_user_account")
+
         try:
             with transaction.atomic():
-
                 account = Account.objects.create(
-                    name=request.POST.get("account_name"),
+                    name=account_name,
                     phone=request.POST.get("account_phone"),
                     address=request.POST.get("account_address"),
                 )
@@ -727,7 +939,7 @@ def create_user_account(request):
                     account=account,
                     firstname=request.POST.get("first_name"),
                     lastname=request.POST.get("last_name"),
-                    email=request.POST.get("email"),
+                    email=email,
                     password=request.POST.get("password"),
                     role="manager",
                     is_active=True,
@@ -739,7 +951,6 @@ def create_user_account(request):
                     manager=manager,
                 )
 
-            # OUTSIDE transaction.atomic()
             messages.success(
                 request,
                 "Account, Manager, and Branch created successfully!"
@@ -751,10 +962,9 @@ def create_user_account(request):
 
     return render(request, "create_user_account.html")
 
-
 def create_branch_with_manager(request):
 
-    # LOGIN CHECK (manual, since no Django auth)
+    # LOGIN CHECK
     if not request.session.get("user_id"):
         return redirect("login_view")
 
@@ -762,9 +972,7 @@ def create_branch_with_manager(request):
         messages.error(request, "Access denied.")
         return redirect("index")
 
-    # Get account from session
     account_id = request.session.get("account_id")
-
     if not account_id:
         messages.error(request, "Account not found in session.")
         return redirect("index")
@@ -772,6 +980,19 @@ def create_branch_with_manager(request):
     account = Account.objects.get(id=account_id)
 
     if request.method == "POST":
+        branch_name = request.POST.get("branch_name")
+        email = request.POST.get("email")
+
+        # Check if branch already exists under this account
+        if Branch.objects.filter(account=account, branch_name=branch_name).exists():
+            messages.error(request, "Branch already exists for this account.")
+            return redirect("create_branch_with_manager")
+
+        # Check if manager already exists
+        if UserInfo.objects.filter(email=email).exists():
+            messages.error(request, "Manager with this email already exists.")
+            return redirect("create_branch_with_manager")
+
         try:
             with transaction.atomic():
 
@@ -779,7 +1000,7 @@ def create_branch_with_manager(request):
                     account=account,
                     firstname=request.POST.get("first_name"),
                     lastname=request.POST.get("last_name"),
-                    email=request.POST.get("email"),
+                    email=email,
                     password=make_password(request.POST.get("password")),
                     role="manager",
                     is_active=True,
@@ -787,7 +1008,7 @@ def create_branch_with_manager(request):
 
                 Branch.objects.create(
                     account=account,
-                    branch_name=request.POST.get("branch_name"),
+                    branch_name=branch_name,
                     manager=manager,
                 )
 
@@ -803,9 +1024,10 @@ def create_branch_with_manager(request):
     return render(request, "create_branch.html")
 
 
+
 def create_staff_with_manager(request):
 
-    # AUTH CHECK
+    # ===== AUTH CHECK =====
     if not request.session.get("user_id"):
         return redirect("login_view")
 
@@ -817,56 +1039,74 @@ def create_staff_with_manager(request):
 
     # Manager's branch
     branch = Branch.objects.filter(manager=manager).first()
-
     if not branch:
         messages.error(request, "No branch assigned to you.")
         return redirect("index")
 
-    # ================= CREATE STAFF =================
+    # ===== HANDLE POST REQUEST =====
     if request.method == "POST":
-        try:
-            with transaction.atomic():
 
-                email = request.POST.get("email")
+        # ===== TOGGLE STAFF =====
+        if request.POST.get("action") == "toggle":
+            staff_id = request.POST.get("staff_id")
+            staff = get_object_or_404(UserInfo, id=staff_id, role="staff", branch=branch)
+            staff.is_active = not staff.is_active
+            staff.save()
+            status = "enabled" if staff.is_active else "disabled"
+            messages.success(request, f"Staff {staff.firstname} {status} successfully.")
+            return redirect("create_staff_with_manager")
 
-                if UserInfo.objects.filter(email=email).exists():
-                    messages.error(request, "Email already exists.")
-                    return redirect("create_staff_with_manager")
+        # ===== CREATE STAFF =====
+        else:
+            first_name = request.POST.get("first_name", "").strip()
+            last_name = request.POST.get("last_name", "").strip()
+            email = request.POST.get("email", "").strip()
+            password = request.POST.get("password", "").strip()
 
-                UserInfo.objects.create(
-                    account=manager.account,
-                    branch=branch,  # FIXED
-                    firstname=request.POST.get("first_name"),
-                    lastname=request.POST.get("last_name"),
-                    email=email,
-                    password=make_password(request.POST.get("password")),
-                    role="staff",
-                    is_active=True,
-                )
+            # ===== VALIDATION =====
+            if not first_name:
+                messages.error(request, "First name is required.")
+                return redirect("create_staff_with_manager")
+            if not last_name:
+                messages.error(request, "Last name is required.")
+                return redirect("create_staff_with_manager")
+            if not email:
+                messages.error(request, "Email is required.")
+                return redirect("create_staff_with_manager")
+            if not password:
+                messages.error(request, "Password is required.")
+                return redirect("create_staff_with_manager")
 
-                messages.success(request, "Staff created successfully.")
+            if UserInfo.objects.filter(email=email).exists():
+                messages.error(request, "Email already exists.")
+                return redirect("create_staff_with_manager")
 
-        except Exception as e:
-            messages.error(request, str(e))
+            try:
+                with transaction.atomic():
+                    UserInfo.objects.create(
+                        account=manager.account,
+                        branch=branch,
+                        firstname=first_name,
+                        lastname=last_name,
+                        email=email,
+                        password=make_password(password),
+                        role="staff",
+                        is_active=True,
+                    )
+                    messages.success(request, f"Staff {first_name} {last_name} created successfully.")
 
-        return redirect("create_staff_with_manager")
+            except Exception as e:
+                messages.error(request, f"Error creating staff: {str(e)}")
 
-    # ================= VIEW STAFF =================
-    staff_list = UserInfo.objects.filter(
-        role="staff",
-        branch=branch
-    ).order_by("-id")
+            return redirect("create_staff_with_manager")
+
+    # ===== VIEW STAFF =====
+    staff_list = UserInfo.objects.filter(role="staff", branch=branch).order_by("-id")
 
     return render(request, "create_staff.html", {
         "branch": branch,
         "staff_list": staff_list
     })
-
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.db.models import Count, Q, Sum, F
-from django.utils.timezone import now
-from .models import Account, Branch, Stock, StockMovement
 
 
 def settings_view(request):
@@ -968,16 +1208,6 @@ def settings_view(request):
 
     return render(request, "settings.html", context)
 
-
-import re
-from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.core.mail import send_mail
-from django.conf import settings
-from django.http import JsonResponse
-from .models import UserInfo, AdminInfo, PasswordResetOTP
-
-
 def forgot_password_otp(request):
     if request.method == "POST":
         email = request.POST.get("email")
@@ -1016,7 +1246,6 @@ def is_strong_password(password):
         re.search(r"\d", password) and
         re.search(r"[!@#$%^&*]", password)
     )
-
 
 def verify_otp(request):
     email = request.session.get("reset_email")
