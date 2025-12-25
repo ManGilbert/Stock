@@ -1,0 +1,142 @@
+{% block content %}
+
+<!-- Dashboard Container -->
+<div class="container mt-4">
+
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Dashboard</h1>
+            <p>Welcome to your dashboard</p>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>Total Users</h5>
+                    <p>120</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>Total Sales</h5>
+                    <p>$5,400</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>Orders</h5>
+                    <p>89</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5>Messages</h5>
+                    <p>23</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Table -->
+    <div class="row mt-4">
+        <div class="col">
+            <h3>Recent Activity</h3>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>User</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in "123456789012345678901234567890" %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>User {{ forloop.counter }}</td>
+                        <td>Updated profile</td>
+                        <td>Completed</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <h3>Notifications</h3>
+            <ul class="list-group">
+                <li class="list-group-item">New user registered</li>
+                <li class="list-group-item">Server backup completed</li>
+                <li class="list-group-item">Password changed</li>
+                <li class="list-group-item">New order placed</li>
+                <li class="list-group-item">System update available</li>
+            </ul>
+        </div>
+
+        <!-- Tasks -->
+        <div class="col-md-6">
+            <h3>Tasks</h3>
+            <ul class="list-group">
+                <li class="list-group-item">Review reports</li>
+                <li class="list-group-item">Approve users</li>
+                <li class="list-group-item">Update dashboard UI</li>
+                <li class="list-group-item">Fix bugs</li>
+                <li class="list-group-item">Deploy updates</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Repeated Content Blocks -->
+    {% for x in "1234567890123456789012345678901234567890" %}
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Card {{ forloop.counter }}</h5>
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Card {{ forloop.counter }}</h5>
+                    <p>Sed do eiusmod tempor incididunt ut labore et dolore.</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5>Card {{ forloop.counter }}</h5>
+                    <p>Ut enim ad minim veniam, quis nostrud exercitation.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Footer -->
+    <div class="row mt-5">
+        <div class="col text-center">
+            <p>&copy; 2025 Dashboard System</p>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
