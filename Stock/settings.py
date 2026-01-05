@@ -139,3 +139,4 @@ DEFAULT_FROM_EMAIL = 'imanishimwe.glbrt@gmail.com'
 # =========================
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
