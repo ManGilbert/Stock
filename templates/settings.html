@@ -2,10 +2,12 @@
 {% block title %}Settings{% endblock %}
 
 {% block content %}
-<div class="card">
 
-    <!-- ================= ADMIN VIEW ================= -->
-    {% if request.session.role == "admin" %}
+<!-- ================= ADMIN VIEW ================= -->
+{% if request.session.role == "admin" %}
+<div class="card">  
+    
+<div class="card my-4">
     <div class="card-body">
         <div class="page-heading">
             <h6>Settings</h6>
@@ -38,7 +40,7 @@
                         <span class="text-truncate" style="width:70%">
                             {{ acc.name }}
                             {% if acc.is_active %}
-                            <span style="color: rgb(75, 75, 235);">: Account is Active</span>
+                            <span style="color: rgb(37, 219, 113);">: Account is Active</span>
                             {% else %}
                             <span style="color: rgb(238, 10, 10);">: Account out of subscription</span>
                             {% endif %}
@@ -108,11 +110,13 @@
             </nav>
         </div>
     </div>
-    {% endif %}
+</div>
+{% endif %}
 
 
-    <!-- ================= MANAGER VIEW ================= -->
-    {% if request.session.role == "manager" %}
+<!-- ================= MANAGER VIEW ================= -->
+{% if request.session.role == "manager" %}
+<div class="card my-4">
     <div class="card-body">
         <div class="page-heading">
             <h6>Settings</h6>
@@ -224,59 +228,63 @@
                 </button>
             </div>
             <div class="modal-body">
-                <ul class="list-group list-group-flush small">
 
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Account</span>
-                        <span id="infoName"></span>
-                    </li>
+                <!-- ACCOUNT INFO -->
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Account</strong></div>
+                    <div class="card-body small">
+                        <div><strong>Name:</strong> {{ account.name }}</div>
+                        <div><strong>Phone:</strong> {{ account.phone|default:"-" }}</div>
+                        <div><strong>Address:</strong> {{ account.address|default:"-" }}</div>
+                    </div>
+                </div>
 
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Phone</span>
-                        <span id="infoPhone"></span>
-                    </li>
+                <!-- BRANCH SUMMARY -->
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Branch Summary</strong></div>
+                    <ul class="list-group list-group-flush small">
+                        {% for branch in branches %}
+                        <li class="list-group-item">
+                            <strong>{{ branch.branch_name }}</strong><br>
+                            Total Products: {{ branch.total_products }}<br>
+                            Stock Value: {{ branch.stock_value|default:0|floatformat:0 }} RWF
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No branches</li>
+                        {% endfor %}
+                    </ul>
+                </div>
 
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Address</span>
-                        <span id="infoAddress" class="text-end"></span>
-                    </li>
+                <!-- MANAGERS -->
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Managers</strong></div>
+                    <ul class="list-group list-group-flush small">
+                        {% for u in managers %}
+                        <li class="list-group-item">
+                            {{ u.firstname }} {{ u.lastname }}<br>
+                            {{ u.email }}
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No managers</li>
+                        {% endfor %}
+                    </ul>
+                </div>
 
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Total Users</span>
-                        <span id="infoUsers"></span>
-                    </li>
+                <!-- STAFF -->
+                <div class="card">
+                    <div class="card-header"><strong>Staff</strong></div>
+                    <ul class="list-group list-group-flush small">
+                        {% for u in staff %}
+                        <li class="list-group-item">
+                            {{ u.firstname }} {{ u.lastname }}<br>
+                            {{ u.email }}
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No staff</li>
+                        {% endfor %}
+                    </ul>
+                </div>
 
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Managers</span>
-                        <span id="infoManagers"></span>
-                    </li>
-
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Staff</span>
-                        <span id="infoStaff"></span>
-                    </li>
-
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Branches</span>
-                        <span id="infoBranches"></span>
-                    </li>
-
-                    <li class="list-group-item py-1 d-flex justify-content-between">
-                        <span>Products</span>
-                        <span id="infoProducts"></span>
-                    </li>
-
-                    <li class="list-group-item py-1 d-flex justify-content-between fw-semibold">
-                        <span>Total Stock Value</span>
-                        <span id="infoStock"></span>
-                    </li>
-
-                    <li class="list-group-item py-1 d-flex justify-content-between fw-semibold">
-                        <span>Monthly Sales</span>
-                        <span id="infoSales"></span>
-                    </li>
-
-                </ul>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">
@@ -290,10 +298,6 @@
             </div>
         </div>
     </div>
-</div>
-</div>
-</div>
-</div>
 </div>
 
 <script>

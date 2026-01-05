@@ -174,7 +174,7 @@ def login_view(request):
         if not user.account or not user.account.is_active:
             messages.error(
                 request,
-                "Your subscription has expired. Please contact the administrator."
+                "Ifata buguzi ryawe ryarangiye. Please contact the administrator." #Your subscription has expired
             )
             return render(request, "auth-login.html")
 
@@ -1318,6 +1318,3 @@ def resend_otp(request):
     )
 
     return JsonResponse({"success": "OTP resent"})
-
-
-

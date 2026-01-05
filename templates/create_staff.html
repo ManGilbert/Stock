@@ -19,7 +19,8 @@
         <form id="staff-form" action="{% url 'create_staff_with_manager' %}" method="post">
             {% csrf_token %}
             <div id="wizard">
-
+                
+                <!-- STEP 1 -->
                 <h6>Staff Info</h6>
                 <section>
                     <input name="first_name" class="form-control mb-2 required" placeholder="First Name">
@@ -31,6 +32,7 @@
                         placeholder="Confirm Password">
                 </section>
 
+                <!-- STEP 2 -->
                 <h6>Confirm</h6>
                 <section>
                     <div class="form-check">
@@ -67,7 +69,7 @@
                     <td>{{ s.email }}</td>
                     <td>
                         {% if s.is_active %}
-                        <span style="color: rgb(49, 49, 228);">Active</span>
+                        <span style="color: rgb(43, 179, 38);">Active</span>
                         {% else %}
                         <span style="color: rgb(224, 19, 19);">Block</span>
                         {% endif %}
