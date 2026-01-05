@@ -19,7 +19,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'unsafe-secret-key')
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['.onrender.com']
+#ALLOWED_HOSTS = ['.onrender.com']
+
+ALLOWED_HOSTS = ["*"]
+
 
 # =========================
 # APPLICATIONS
