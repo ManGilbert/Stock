@@ -1109,13 +1109,20 @@ def create_staff_with_manager(request):
     })
 
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db.models import Count, Sum, F, Q, DecimalField, ExpressionWrapper, Value
+from django.db.models.functions import Coalesce
+from django.utils.timezone import now
+
+from .models import Account, Branch, UserInfo, Stock
+
 def settings_view(request):
     # ---------- AUTH ----------
     if not request.session.get("user_id") and not request.session.get("admin_id"):
         return redirect("login_view")
 
     role = request.session.get("role")
-
     if role == "staff":
         messages.error(request, "Access denied.")
         return redirect("index")
@@ -1126,8 +1133,9 @@ def settings_view(request):
     if request.method == "POST":
         action = request.POST.get("action")
 
+        # ===== ADMIN =====
         if action == "update_account" and role == "admin":
-            account = Account.objects.get(id=request.POST.get("account_id"))
+            account = get_object_or_404(Account, id=request.POST.get("account_id"))
             account.name = request.POST.get("name")
             account.phone = request.POST.get("phone")
             account.address = request.POST.get("address")
@@ -1136,21 +1144,18 @@ def settings_view(request):
             return redirect("settings_view")
 
         if action == "toggle_account" and role == "admin":
-            account = Account.objects.get(id=request.POST.get("account_id"))
+            account = get_object_or_404(Account, id=request.POST.get("account_id"))
             account.is_active = not account.is_active
             account.save()
-            messages.success(
-                request,
-                f"Account {'enabled' if account.is_active else 'disabled'} successfully."
-            )
+            messages.success(request, f"Account {'enabled' if account.is_active else 'disabled'} successfully.")
             return redirect("settings_view")
 
+        # ===== MANAGER =====
         if action == "update_branch" and role == "manager":
-            branch = Branch.objects.get(id=request.POST.get("branch_id"))
+            branch = get_object_or_404(Branch, id=request.POST.get("branch_id"))
             if branch.account_id != account_id:
                 messages.error(request, "Unauthorized branch.")
                 return redirect("index")
-
             branch.branch_name = request.POST.get("branch_name")
             branch.save()
             messages.success(request, "Branch updated successfully.")
@@ -1163,50 +1168,83 @@ def settings_view(request):
         current_month = now().month
         current_year = now().year
 
-        context["accounts"] = (
+        accounts = (
             Account.objects
             .annotate(
-                total_users=Count("users", distinct=True),
-                managers_count=Count(
-                    "users",
-                    filter=Q(users__role="manager"),
-                    distinct=True
-                ),
-                staff_count=Count(
-                    "users",
-                    filter=Q(users__role="staff"),
-                    distinct=True
-                ),
-                branches_count=Count("branches", distinct=True),
-                products_count=Count("products", distinct=True),
-
-                # TOTAL STOCK VALUE
-                stock_value=Sum(
-                    F("products__stocks__quantity") *
-                    F("products__cost_price"),
-                    distinct=True
-                ),
-
-                # MONTHLY SALES
-                monthly_sales=Sum(
-                    "products__movements__selling_amount",
-                    filter=Q(
-                        products__movements__movement_type="OUT",
-                        products__movements__created_at__month=current_month,
-                        products__movements__created_at__year=current_year,
+                total_users=Count("users"),
+                managers_count=Count("users", filter=Q(users__role="manager")),
+                staff_count=Count("users", filter=Q(users__role="staff")),
+                branches_count=Count("branches"),
+                products_count=Count("products"),
+                stock_value=Coalesce(
+                    Sum(
+                        ExpressionWrapper(
+                            F("products__stocks__quantity") * F("products__cost_price"),
+                            output_field=DecimalField(max_digits=14, decimal_places=2),
+                        )
                     ),
-                    distinct=True
+                    Value(0, output_field=DecimalField(max_digits=14, decimal_places=2)),
+                ),
+                monthly_sales=Coalesce(
+                    Sum(
+                        "products__movements__selling_amount",
+                        filter=Q(
+                            products__movements__movement_type="OUT",
+                            products__movements__created_at__month=current_month,
+                            products__movements__created_at__year=current_year,
+                        ),
+                    ),
+                    Value(0, output_field=DecimalField(max_digits=14, decimal_places=2)),
                 ),
             )
             .order_by("-id")
         )
 
+        selected_account = accounts.first()
+
+        context.update({
+            "accounts": accounts,
+            "account": selected_account,
+            "branches": Branch.objects.filter(account=selected_account) if selected_account else [],
+            "staff": UserInfo.objects.filter(account=selected_account, role="staff") if selected_account else [],
+        })
+
     elif role == "manager":
-        account = Account.objects.get(id=account_id)
-        context["account"] = account
-        context["branches"] = Branch.objects.filter(account=account)
+        account = get_object_or_404(Account, id=account_id)
+
+        branches = (
+            Branch.objects.filter(account=account)
+            .select_related("manager")
+            .prefetch_related("products__stocks")
+        )
+
+        staff = UserInfo.objects.filter(account=account, role="staff")
+
+        branch_stock = {}
+        for branch in branches:
+            total = Stock.objects.filter(branch=branch).aggregate(
+                total=Coalesce(
+                    Sum(
+                        ExpressionWrapper(
+                            F("quantity") * F("product__cost_price"),
+                            output_field=DecimalField(max_digits=14, decimal_places=2),
+                        )
+                    ),
+                    Value(0, output_field=DecimalField(max_digits=14, decimal_places=2)),
+                )
+            )["total"]
+            branch_stock[branch.id] = total
+
+        context.update({
+            "account": account,
+            "branches": branches,
+            "staff": staff,
+            "branch_stock": branch_stock,
+        })
 
     return render(request, "settings.html", context)
+
+
 
 def forgot_password_otp(request):
     if request.method == "POST":

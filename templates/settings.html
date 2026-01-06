@@ -214,91 +214,96 @@
     </div>
 </div>
 
+
+
 <!-- ================= ACCOUNT INFO MODAL ================= -->
-<!--scrolling content Modal -->
-<div class="modal fade" id="accountInfoModal" tabindex="-1" role="dialog" aria-labelledby="exampleModalScrollableTitle"
-    aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable" role="document">
+<div class="modal fade" id="accountInfoModal" tabindex="-1" aria-hidden="true" aria-labelledby="accountInfoModalLabel">
+    <div class="modal-dialog modal-dialog-scrollable modal-lg">
         <div class="modal-content">
+
+            <!-- HEADER -->
             <div class="modal-header">
-                <h5 class="modal-title" id="exampleModalScrollableTitle">
-                    Account Information</h5>
-                <button type="button" class="close" data-bs-dismiss="modal" aria-label="Close">
-                    <i data-feather="x"></i>
-                </button>
+                <h5 class="modal-title" id="accountInfoModalLabel">Account Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+
+            <!-- BODY -->
             <div class="modal-body">
 
-                <!-- ACCOUNT INFO -->
-                <div class="card mb-3">
-                    <div class="card-header"><strong>Account</strong></div>
-                    <div class="card-body small">
-                        <div><strong>Name:</strong> {{ account.name }}</div>
-                        <div><strong>Phone:</strong> {{ account.phone|default:"-" }}</div>
-                        <div><strong>Address:</strong> {{ account.address|default:"-" }}</div>
-                    </div>
-                </div>
+                <!-- ================= ACCOUNT INFO ================= -->
+                <h6 class="fw-bold">Account Information</h6>
+                <hr>
 
-                <!-- BRANCH SUMMARY -->
-                <div class="card mb-3">
-                    <div class="card-header"><strong>Branch Summary</strong></div>
-                    <ul class="list-group list-group-flush small">
-                        {% for branch in branches %}
-                        <li class="list-group-item">
-                            <strong>{{ branch.branch_name }}</strong><br>
-                            Total Products: {{ branch.total_products }}<br>
-                            Stock Value: {{ branch.stock_value|default:0|floatformat:0 }} RWF
-                        </li>
-                        {% empty %}
-                        <li class="list-group-item text-muted">No branches</li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                <table class="table table-sm table-borderless">
+                    <tr><th>Account</th><td>{{ account.name }}</td></tr>
+                    <tr><th>Phone</th><td>{{ account.phone }}</td></tr>
+                    <tr><th>Address</th><td>{{ account.address }}</td></tr>
+                </table>
 
-                <!-- MANAGERS -->
-                <div class="card mb-3">
-                    <div class="card-header"><strong>Managers</strong></div>
-                    <ul class="list-group list-group-flush small">
-                        {% for u in managers %}
-                        <li class="list-group-item">
-                            {{ u.firstname }} {{ u.lastname }}<br>
-                            {{ u.email }}
-                        </li>
-                        {% empty %}
-                        <li class="list-group-item text-muted">No managers</li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                <!-- ================= USERS ACCESS ================= -->
+                <h6 class="fw-bold mt-4">Users Accessibility</h6>
+                <hr>
 
-                <!-- STAFF -->
-                <div class="card">
-                    <div class="card-header"><strong>Staff</strong></div>
-                    <ul class="list-group list-group-flush small">
-                        {% for u in staff %}
-                        <li class="list-group-item">
-                            {{ u.firstname }} {{ u.lastname }}<br>
-                            {{ u.email }}
-                        </li>
-                        {% empty %}
-                        <li class="list-group-item text-muted">No staff</li>
-                        {% endfor %}
-                    </ul>
-                </div>
+                <!-- ================= MANAGERS ================= -->
+                <h6 class="text-primary">Managers</h6>
+
+                {% for branch in branches %}
+                    {% if branch.manager %}
+                        <div class="border rounded p-3 mb-3">
+                            <strong>Branch:</strong> {{ branch.branch_name }}<br>
+                            <strong>Names:</strong> {{ branch.manager.firstname }} {{ branch.manager.lastname }}<br>
+                            <strong>Email:</strong> {{ branch.manager.email }}<br>
+                            <strong>Phone:</strong> {{ branch.manager.phone }}<br>
+                            <strong>Address:</strong> {{ branch.manager.address }}<br>
+
+                            <hr class="my-2">
+
+                            <strong>Total Products:</strong> {{ branch.products.count }}<br>
+
+                            <strong>Stock Status:</strong>
+                            {% with total=0 %}
+                                {% for product in branch.products.all %}
+                                    {% for stock in product.stocks.all %}
+                                        {% with total=total|add:stock.quantity %}
+                                        {% endwith %}
+                                    {% endfor %}
+                                {% endfor %}
+                                {{ total }} RWF
+                            {% endwith %}
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted">No managers found.</p>
+                {% endfor %}
+
+                <!-- ================= STAFF ================= -->
+                <h6 class="text-success mt-4">Staff</h6>
+
+                {% for user in account.users.all %}
+                    {% if user.role == "staff" %}
+                        <div class="border rounded p-2 mb-2">
+                            <strong>Names:</strong> {{ user.firstname }} {{ user.lastname }}<br>
+                            <strong>Email:</strong> {{ user.email }}<br>
+                            <strong>Phone:</strong> {{ user.phone }}<br>
+                            <strong>Address:</strong> {{ user.address }}
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <p class="text-muted">No staff found.</p>
+                {% endfor %}
 
             </div>
+
+            <!-- FOOTER -->
             <div class="modal-footer">
-                <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">
-                    <i class="bx bx-x d-block d-sm-none"></i>
-                    <span class="d-none d-sm-block">Close</span>
-                </button>
-                <button type="button" class="btn btn-primary ml-1" data-bs-dismiss="modal">
-                    <i class="bx bx-check d-block d-sm-none"></i>
-                    <span class="d-none d-sm-block">Accept</span>
-                </button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
             </div>
+
         </div>
     </div>
 </div>
+
+
 
 <script>
 
@@ -314,30 +319,15 @@
         document.getElementById("editBranchName").value = name;
     }
 
-    document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", function () {
+    var accountInfoModalEl = document.getElementById('accountInfoModal');
+    var accountInfoModal = new bootstrap.Modal(accountInfoModalEl);
 
-        const modal = document.getElementById("accountInfoModal");
-
-        modal.addEventListener("show.bs.modal", function (event) {
-            const button = event.relatedTarget;
-
-            document.getElementById("infoName").textContent = button.dataset.name || "-";
-            document.getElementById("infoPhone").textContent = button.dataset.phone || "-";
-            document.getElementById("infoAddress").textContent = button.dataset.address || "-";
-            document.getElementById("infoUsers").textContent = button.dataset.users || 0;
-            document.getElementById("infoManagers").textContent = button.dataset.managers || 0;
-            document.getElementById("infoStaff").textContent = button.dataset.staff || 0;
-            document.getElementById("infoBranches").textContent = button.dataset.branches || 0;
-            document.getElementById("infoProducts").textContent = button.dataset.products || 0;
-
-            document.getElementById("infoStock").textContent =
-                Number(button.dataset.stock || 0).toLocaleString() + " RWF";
-
-            document.getElementById("infoSales").textContent =
-                Number(button.dataset.sales || 0).toLocaleString() + " RWF";
-        });
-
+    document.getElementById('showAccountInfoBtn').addEventListener('click', function () {
+        accountInfoModal.show();
     });
+});
+
 
     document.addEventListener("DOMContentLoaded", function () {
 
